@@ -1,0 +1,16 @@
+{
+  "string": [
+    {
+      "name": "entry_desc",
+      "value": "智慧农业大棚监控系统"
+    },
+    {
+      "name": "entryability_desc",
+      "value": "智慧农业大棚主页面"
+    },
+    {
+      "name": "entryability_label",
+      "value": "智慧农业大棚"
+    }
+  ]
+}

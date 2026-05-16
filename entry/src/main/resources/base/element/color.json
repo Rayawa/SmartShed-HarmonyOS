@@ -1,0 +1,56 @@
+{
+  "color": [
+    {
+      "name": "start_window_background",
+      "value": "#FFFFFF"
+    },
+    {
+      "name": "background",
+      "value": "#FFF6F9FF"
+    },
+    {
+      "name": "diff_background",
+      "value": "#FFE1E4EA"
+    },
+    {
+      "name": "mask_color",
+      "value": "#66F1F3F5"
+    },
+    {
+      "name": "light_color",
+      "value": "#33E5E5E5"
+    },
+    {
+      "name": "button_border",
+      "value": "#FFFFFF"
+    },
+    {
+      "name": "backcolor",
+      "value": "#EEF6FE"
+    },
+    {
+      "name": "navcolor",
+      "value": "#FFEEF4FE"
+    },
+    {
+      "name": "border",
+      "value": "#B8D0E5"
+    },
+    {
+      "name": "border_AI",
+      "value": "#F97794"
+    },
+    {
+      "name": "diff_content",
+      "value": "#1E6FCD"
+    },
+    {
+      "name": "gradient_start_color",
+      "value": "#F97794"
+    },
+    {
+      "name": "gradient_end_color",
+      "value": "#623AA2"
+    }
+  ]
+}
