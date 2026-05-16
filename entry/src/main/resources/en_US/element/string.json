@@ -1,0 +1,16 @@
+{
+  "string": [
+    {
+      "name": "entry_desc",
+      "value": "Smart Agriculture Shed Monitoring System"
+    },
+    {
+      "name": "entryability_desc",
+      "value": "Smart Agriculture Shed Main Page"
+    },
+    {
+      "name": "entryability_label",
+      "value": "Smart Shed"
+    }
+  ]
+}
