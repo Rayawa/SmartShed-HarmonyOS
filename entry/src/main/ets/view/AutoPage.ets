@@ -2,7 +2,7 @@ import { ZoneData } from '../viewmodel/SmartShedBean';
 import {
   MqttReceiverClient, TOPIC_FAN, TOPIC_LED, TOPIC_WATER_PUMP
 } from '../service/MqttReceiverClient';
-import { promptAction } from '@kit.ArkUI';
+import { curves, LengthMetrics, PromptAction, promptAction } from '@kit.ArkUI';
 import { hdsEffect } from '@kit.UIDesignKit';
 
 @Component
@@ -20,9 +20,21 @@ export struct AutoPage {
   @StorageLink('zone1') zone1: ZoneData = new ZoneData();
   public mqttClient!: MqttReceiverClient;
 
+
+  @State animStep1: boolean = false;
+  @State animStep2: boolean = false;
+  @State animStep3: boolean = false;
+
   aboutToAppear(): void {
     this.autoEnabled = true;
     this.startAutoLogic();
+    const duration = 500;
+    const interval = duration * 0.25;
+    const curve = curves.springMotion(0.35, 0.75);
+
+    setTimeout(() => { animateTo({ duration: duration, curve: curve }, () => { this.animStep1 = true }) }, 100);
+    setTimeout(() => { animateTo({ duration: duration, curve: curve }, () => { this.animStep2 = true }) }, interval + 100);
+    setTimeout(() => { animateTo({ duration: duration, curve: curve }, () => { this.animStep3 = true }) }, interval * 2 + 100);
   }
 
   aboutToDisappear(): void {
@@ -142,6 +154,8 @@ export struct AutoPage {
           .fontSize(14)
           .fontColor(this.isBoardConnected ? '#1E661E' : '#A52A2A')
       }
+      .opacity(this.animStep1 ? 1 : 0)
+      .translate({ y: this.animStep1 ? 0 : 20 })
       .width('100%')
       .padding({ left: 16, right: 16, top: 10, bottom: 10 })
       .backgroundColor(this.isBoardConnected ? '#E8F5E9' : '#FFEBEE')
@@ -161,6 +175,8 @@ export struct AutoPage {
         .rowsGap(12)
         .width('100%')
         .height(160)
+        .opacity(this.animStep2 ? 1 : 0)
+        .translate({ y: this.animStep2 ? 0 : 20 })
 
         // 自动策略控制面板
         Column({ space: 12 }) {
@@ -193,6 +209,8 @@ export struct AutoPage {
         .padding(16)
         .backgroundColor($r("sys.color.ohos_id_color_button_normal"))
         .borderRadius(16)
+        .opacity(this.animStep3 ? 1 : 0)
+        .translate({ y: this.animStep3 ? 0 : 20 })
 
       } else {
         Column({ space: 12 }) {
@@ -207,6 +225,8 @@ export struct AutoPage {
             .fontColor(Color.Black)
             .margin({ top: 20 })
         }
+        .opacity(this.animStep1 ? 1 : 0)
+        .translate({ y: this.animStep1 ? 0 : 20 })
         .margin({top: 50})
         .justifyContent(FlexAlign.Center)
       }
@@ -257,15 +277,16 @@ export struct AutoPage {
   inputField(label: string, value: string, onStrChange: (s: string) => void) {
     Row() {
       Text(label)
-        .fontSize(12)
-        .width(50)
+        .fontSize(13)
+        .width(60)
         .fontColor($r("sys.color.font_secondary"))
+        .margin({ right: 5})
       TextInput({ text: value })
-        .fontSize(12)
-        .height(28)
-        .layoutWeight(1)
+        .fontSize(10)
+        .height(25)
+        .width(60)
         .padding({ left: 8, right: 8 })
-        .backgroundColor($r("sys.color.ohos_id_color_background"))
+        .backgroundColor($r("app.color.diff_background"))
         .borderRadius(6)
         .type(InputType.Number)
         .onChange((val: string) => {

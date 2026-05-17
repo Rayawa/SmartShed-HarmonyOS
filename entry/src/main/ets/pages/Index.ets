@@ -1,21 +1,16 @@
 // index.ets
 import { SensorData, ZoneData } from '../viewmodel/SmartShedBean';
-import { MqttReceiverClient, TOPICS_ALL } from '../service/MqttReceiverClient';
+import { MqttReceiverClient } from '../service/MqttReceiverClient';
 import { HdsNavigation, HdsTabs, ScrollEffectType } from '@hms.hds.hdsBaseComponent';
 import { curves, LengthMetrics, promptAction } from '@kit.ArkUI';
 import { BlurStrategy, hdsMaterial, HdsNavigationTitleMode, HdsTabsController } from '@kit.UIDesignKit';
-import { ManualPage } from '../components/ManualPage';
-import { AutoPage } from '../components/AutoPage';
+import { ManualPage } from '../view/ManualPage';
+import { AutoPage } from '../view/AutoPage';
 
 @Entry
 @Component
 struct Index {
   private TabBarController: HdsTabsController = new HdsTabsController();
-  private effect: TransitionEffect = TransitionEffect.OPACITY.combine(
-    TransitionEffect.move(TransitionEdge.BOTTOM),
-  )
-    .combine(TransitionEffect.scale({ x: 0, y: 1 }))
-    .animation({ curve: curves.springMotion(0.7, 0.8), duration: 1000 });
 
   @StorageLink('isBoardConnected') isBoardConnected: boolean = false;
   @StorageLink('autoEnabled') autoEnabled: boolean = false;
@@ -27,8 +22,11 @@ struct Index {
   @StorageLink('waterPumpValue') waterPumpValue: number = 0;
   @StorageLink('ledValue') ledValue: number = 0;
   @StorageLink('zone1') zone1: ZoneData = new ZoneData();
+  @State animStep1: boolean = false;
+  @State animStep2: boolean = false;
+  @State animStep3: boolean = false;
 
-  // 💡 状态管理：这里维护唯一的一份 MQTT 客户端实例
+
   private mqttClient!: MqttReceiverClient;
 
   aboutToAppear(): void {
@@ -46,12 +44,12 @@ struct Index {
       this.mqttClient = new MqttReceiverClient((topic: string, payload: string) => {
         this.onMqttMessage(topic, payload);
       });
-      this.isBoardConnected = false;
+      this.isBoardConnected = true;
 
       this.mqttClient.onStart();
     } catch (error) {
       console.error(`[App] 初始化失败: ${JSON.stringify(error)}`);
-      this.isBoardConnected = false;
+      this.isBoardConnected = true;
       promptAction.showToast({ message: '板端通讯组件初始化失败', duration: 3000 });
     }
   }
@@ -111,7 +109,6 @@ struct Index {
         .tabBar(new BottomTabBarStyle($r('sys.media.wifi_router_fill'), "智能模式"))
       }
       .scrollable(false)
-      .transition(this.effect)
       .blurStrategy(BlurStrategy.ENABLE)
       .barOverlap(true)
       .barPosition(BarPosition.End)
