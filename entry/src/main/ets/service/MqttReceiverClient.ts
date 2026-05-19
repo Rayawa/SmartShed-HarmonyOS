@@ -1,3 +1,4 @@
+// service/MqttReceiverClient.ts
 import { BusinessError } from '@kit.BasicServicesKit';
 import { socket } from '@kit.NetworkKit';
 import { util } from '@kit.ArkTS';
@@ -6,7 +7,7 @@ import { util } from '@kit.ArkTS';
 const MAX_MQTT_CLIENTID_LENGTH = 22;
 const MQTT_CLIENT_ID = 'SmartShed_Pad';
 
-// MQTT 主题（已经全面对齐你的 Rayawa/ 前缀暗号！）
+// MQTT 主题
 export const TOPICS_ALL: string[] = ['Rayawa/light_intensity_1', 'Rayawa/soil_moisture_1', 'Rayawa/temp_and_hum_1'];
 export const TOPIC_FAN = 'Rayawa/fan_1';
 export const TOPIC_LED = 'Rayawa/led_1';
@@ -19,16 +20,14 @@ export class MqttReceiverClient {
   private brokerHost: string = 'broker.emqx.io';
   private brokerPort: number = 1883;
   private keepAliveSeconds: number = 20;
-
-  // 🌟【修复点 1】：默认改为 true。公网免费测试服务器强制要求 CleanSession，否则会被 EMQX 防火墙秒切断
   private cleanStart: boolean = true;
 
   private tcpSocket: socket.TCPSocket | null = null;
   private connected: boolean = false;
   private callback: MqttCallback | null = null;
   private reconnectTimer: number | null = null;
+  private heartbeatTimer: number | null = null; // 新增：心跳定时器避免断连
 
-  // 🌟【修复点 2】：在这里直接初始化默认要订阅的主题！确保一连上就能自动去“邮局”订阅
   private subscribeTopics: string[] = TOPICS_ALL;
 
   private textEncoder = new util.TextEncoder();
@@ -52,9 +51,6 @@ export class MqttReceiverClient {
     this.connectToBroker();
   }
 
-  /**
-   * 使用标准 @kit.NetworkKit.socket 连接至 MQTT Broker
-   */
   public connectToBroker(): void {
     if (this.tcpSocket) {
       this.disconnectInternal();
@@ -63,7 +59,6 @@ export class MqttReceiverClient {
     const socketInstance = socket.constructTCPSocketInstance();
     this.tcpSocket = socketInstance;
 
-    // 匿名对象解构，彻底免除 SDK 导出的 OnMessageInfo / SocketMessageInfo 命名冲突大坑
     socketInstance.on('message', (msgInfo: { message: ArrayBuffer }) => {
       if (msgInfo && msgInfo.message) {
         this.handleMqttMessage(msgInfo.message);
@@ -71,39 +66,38 @@ export class MqttReceiverClient {
     });
 
     socketInstance.on('error', (err: BusinessError) => {
-      console.error(`[MQTT] Socket error: ${JSON.stringify(err)}`);
+      console.error(`[MQTT] Socket 错误: ${JSON.stringify(err)}`);
       this.connected = false;
       this.scheduleReconnect();
     });
 
     socketInstance.on('close', () => {
-      console.info('[MQTT] Socket closed');
+      console.info('[MQTT] Socket 连接关闭');
       this.connected = false;
       this.scheduleReconnect();
     });
 
+    // 修复点：去掉 family 强制约束，允许自动适配网络环境
     const connectOptions: socket.TCPConnectOptions = {
       address: {
         address: this.brokerHost,
-        port: this.brokerPort,
-        family: 1
+        port: this.brokerPort
       },
       timeout: 5000
     };
 
     socketInstance.connect(connectOptions).then(() => {
-      console.info('[MQTT] TCP connected successfully');
-      // 注意：此时还不能设置 this.connected = true，必须等待 MQTT 底层的 CONNACK 报文确认！
+      console.info('[MQTT] TCP 物理链路连接成功，正在发送握手报文...');
       this.sendConnectPacket();
     }).catch((err: BusinessError) => {
-      console.error(`[MQTT] Connect failed: ${JSON.stringify(err)}`);
+      console.error(`[MQTT] TCP 连接失败: ${JSON.stringify(err)}`);
       this.scheduleReconnect();
     });
   }
 
   private sendConnectPacket(): void {
-    const protocolName = [0x00, 0x04, 0x4D, 0x51, 0x54, 0x54]; // "MQTT"
-    const protocolLevel = 0x04; // MQTT 3.1.1
+    const protocolName = [0x00, 0x04, 0x4D, 0x51, 0x54, 0x54];
+    const protocolLevel = 0x04;
     const connectFlags = this.cleanStart ? 0x02 : 0x00;
     const keepAlive = this.intToTwoBytes(this.keepAliveSeconds);
 
@@ -120,26 +114,27 @@ export class MqttReceiverClient {
   public subscribeToTopic(topics: string[]): void {
     this.subscribeTopics = topics;
     if (!this.connected || !this.tcpSocket) {
-      console.warn('[MQTT] Not connected yet, subscribe configuration saved.');
+      console.warn('[MQTT] 尚未连接成功，订阅配置已保存。');
       return;
     }
 
     let payload: number[] = [];
-    const packetId = [0x00, 0x01]; // 简易实现，固定 Packet ID
+    const packetId = [0x00, 0x01];
 
     for (const topic of topics) {
       const topicBytes = this.stringToUtf8Bytes(topic);
       const topicLen = this.intToTwoBytes(topicBytes.length);
-      payload = [...payload, ...topicLen, ...topicBytes, 0x00]; // QoS 0
+      payload = [...payload, ...topicLen, ...topicBytes, 0x00];
     }
 
     const packet = this.buildMqttPacket(0x82, [...packetId, ...payload]);
     this.sendPacket(packet);
+    console.info(`[MQTT] 订阅指令已下发: ${JSON.stringify(topics)}`);
   }
 
   public publish(topic: string, msg: string): void {
     if (!this.connected || !this.tcpSocket) {
-      console.warn('[MQTT] Not connected, cannot publish');
+      console.warn(`[MQTT] 未连上服务器，拒绝发送指令 -> ${topic}:${msg}`);
       return;
     }
 
@@ -148,32 +143,31 @@ export class MqttReceiverClient {
     const msgBytes = this.stringToUtf8Bytes(msg);
 
     const payload = [...topicLen, ...topicBytes, ...msgBytes];
-    const packet = this.buildMqttPacket(0x30, payload); // QoS 0 PUBLISH
+    const packet = this.buildMqttPacket(0x30, payload);
     this.sendPacket(packet);
   }
 
-  public unsubscribe(topics: string[]): void {
-    if (!this.connected || !this.tcpSocket) {
-      return;
+  private startHeartbeat(): void {
+    if (this.heartbeatTimer !== null) {
+      clearInterval(this.heartbeatTimer);
     }
-
-    let payload: number[] = [];
-    const packetId = [0x00, 0x02];
-
-    for (const topic of topics) {
-      const topicBytes = this.stringToUtf8Bytes(topic);
-      const topicLen = this.intToTwoBytes(topicBytes.length);
-      payload = [...payload, ...topicLen, ...topicBytes];
-    }
-
-    const packet = this.buildMqttPacket(0xA2, [...packetId, ...payload]);
-    this.sendPacket(packet);
+    // 按照 KeepAlive 的 75% 频率发送心跳包
+    this.heartbeatTimer = setInterval(() => {
+      if (this.connected) {
+        const pingPacket = this.buildMqttPacket(0xC0, []); // PINGREQ
+        this.sendPacket(pingPacket);
+      }
+    }, this.keepAliveSeconds * 1000 * 0.75);
   }
 
   public disconnect(): void {
     if (this.reconnectTimer !== null) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
+    }
+    if (this.heartbeatTimer !== null) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
     }
     this.sendDisconnectPacket();
     this.disconnectInternal();
@@ -187,7 +181,7 @@ export class MqttReceiverClient {
         this.tcpSocket.off('close');
         this.tcpSocket.close();
       } catch (e) {
-        console.error(`[MQTT] Error closing socket: ${JSON.stringify(e)}`);
+        console.error(`[MQTT] 关闭 Socket 异常: ${JSON.stringify(e)}`);
       }
       this.tcpSocket = null;
     }
@@ -203,62 +197,87 @@ export class MqttReceiverClient {
     if (this.reconnectTimer !== null) {
       return;
     }
+    if (this.heartbeatTimer !== null) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+    }
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
-      console.info('[MQTT] Attempting reconnect...');
+      console.info('[MQTT] 触发自动重连机制...');
       this.connectToBroker();
     }, 5000);
   }
 
   private handleMqttMessage(data: ArrayBuffer): void {
     const bytes = new Uint8Array(data);
-    if (bytes.length < 2) return;
+    let cursor = 0;
 
-    const packetType = bytes[0] & 0xF0;
+    while (cursor + 1 < bytes.length) {
+      const controlByte = bytes[cursor];
+      const packetType = controlByte & 0xF0;
+      let pos = cursor + 1;
+      let multiplier = 1;
+      let remainingLength = 0;
 
-    let pos = 1;
-    let multiplier = 1;
-    let remainingLength = 0;
-    while (pos < bytes.length) {
-      const digit = bytes[pos++];
-      remainingLength += (digit & 0x7F) * multiplier;
-      multiplier *= 128;
-      if ((digit & 0x80) === 0) break;
-    }
-
-    if (packetType === 0x30) {
-      this.handlePublish(bytes, pos);
-    } else if (packetType === 0x20) {
-      // 🌟【逻辑完善点】：只有当收到服务端的 0x20 (CONNACK) 响应，且返回状态码为 0 时，才代表 MQTT 真正连接成功
-      const connectReturnCode = bytes[pos + 1];
-      if (connectReturnCode === 0x00) {
-        console.info('[MQTT] Protocol Handshake Connected Successfully.');
-        this.connected = true;
-        if (this.subscribeTopics.length > 0 && this.callback) {
-          // 此时真正触发向服务器发起订阅
-          this.subscribeToTopic(this.subscribeTopics);
+      while (pos < bytes.length) {
+        const digit = bytes[pos++];
+        remainingLength += (digit & 0x7F) * multiplier;
+        multiplier *= 128;
+        if ((digit & 0x80) === 0) {
+          break;
         }
-      } else {
-        console.error(`[MQTT] CONNACK rejected with code: ${connectReturnCode}`);
-        this.disconnectInternal();
-        this.scheduleReconnect();
       }
-    } else if (packetType === 0x90) {
-      console.info('[MQTT] SUBACK received from server.');
+
+      const packetEnd = pos + remainingLength;
+
+      // 💥【关键防御修复】：如果计算出的结束位置非法或原地踏步，强行推进一步防止死循环
+      if (packetEnd <= cursor || packetEnd > bytes.length) {
+        console.warn('[MQTT] 数据流异常或未接收完整，跳过当前残余缓冲区');
+        cursor++;
+        continue;
+      }
+
+      if (packetType === 0x30) {
+        this.handlePublish(bytes, pos, packetEnd);
+      } else if (packetType === 0x20) {
+        const connectReturnCode = bytes[pos + 1];
+        if (connectReturnCode === 0x00) {
+          console.info('[MQTT] 协议握手成功！应用层正式建立连接。');
+          this.connected = true;
+          this.startHeartbeat(); // 开启心跳维持机制
+          if (this.subscribeTopics.length > 0 && this.callback) {
+            this.subscribeToTopic(this.subscribeTopics);
+          }
+        } else {
+          console.error(`[MQTT] 连接被 Broker 拒绝，错误码: ${connectReturnCode}`);
+          this.disconnectInternal();
+          this.scheduleReconnect();
+          return;
+        }
+      } else if (packetType === 0x90) {
+        console.info('[MQTT] 收到服务端的订阅确认 (SUBACK)');
+      } else if (packetType === 0xD0) {
+        // 完美闭环：接收并消化心跳响应（PINGRESP），防止进入死循环
+        console.info('[MQTT] 收到心跳响应 (PINGRESP)');
+      }
+
+      cursor = packetEnd; // 正常前移指针
     }
   }
 
-  private handlePublish(bytes: Uint8Array, startPos: number): void {
+  private handlePublish(bytes: Uint8Array, startPos: number, endPos: number): void {
     let pos = startPos;
+    if (pos + 2 > endPos) return;
+
     const topicLen = (bytes[pos] << 8) | bytes[pos + 1];
     pos += 2;
 
+    if (pos + topicLen > endPos) return;
     const topic = this.utf8BytesToString(bytes.slice(pos, pos + topicLen));
     pos += topicLen;
 
-    // 完善：精确定位 Payload 字节区间
-    const payload = this.utf8BytesToString(bytes.slice(pos));
-    console.info(`[MQTT] Received - topic: ${topic}, payload: ${payload}`);
+    const payload = this.utf8BytesToString(bytes.slice(pos, endPos));
+    console.info(`[MQTT] 收到主题消息 -> ${topic} : ${payload}`);
 
     if (this.callback) {
       this.callback(topic, payload);
@@ -290,11 +309,9 @@ export class MqttReceiverClient {
   private sendPacket(buffer: ArrayBuffer): void {
     if (!this.tcpSocket) return;
     try {
-      this.tcpSocket.send({
-        data: buffer
-      });
+      this.tcpSocket.send({ data: buffer });
     } catch (e) {
-      console.error(`[MQTT] Send failed: ${JSON.stringify(e)}`);
+      console.error(`[MQTT] 数据包发送失败: ${JSON.stringify(e)}`);
     }
   }
 

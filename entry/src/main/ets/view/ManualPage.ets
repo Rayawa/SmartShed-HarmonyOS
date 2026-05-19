@@ -7,16 +7,16 @@ import { curves, promptAction } from '@kit.ArkUI';
 
 @Component
 export struct ManualPage {
-  @StorageLink('isBoardConnected') isBoardConnected: boolean = false;
-  @StorageLink('autoEnabled') autoEnabled: boolean = false;
-  @StorageLink('temp') temp: number = 28;
-  @StorageLink('hum') hum: number = 50;
-  @StorageLink('intensity') intensity: number = 134;
-  @StorageLink('moisture') moisture: number = 50;
-  @StorageLink('fanValue') fanValue: number = 0;
-  @StorageLink('waterPumpValue') waterPumpValue: number = 0;
-  @StorageLink('ledValue') ledValue: number = 0;
-  @StorageLink('zone1') zone1: ZoneData = new ZoneData();
+  @Link isBoardConnected: boolean;
+  @Link autoEnabled: boolean;
+  @Link temp: number;
+  @Link hum: number;
+  @Link intensity: number;
+  @Link moisture: number;
+  @Link fanValue: number;
+  @Link waterPumpValue: number;
+  @Link ledValue: number;
+  @Link zone1: ZoneData;
   public mqttClient!: MqttReceiverClient;
 
   @State animStep1: boolean = false;
@@ -24,7 +24,6 @@ export struct ManualPage {
   @State animStep3: boolean = false;
 
   aboutToAppear(): void {
-    this.autoEnabled = false;
     const duration = 500;
     const interval = duration * 0.25;
     const curve = curves.springMotion(0.35, 0.75);
@@ -47,6 +46,22 @@ export struct ManualPage {
       promptAction.showToast({ message: '指令下发失败，请检查网络', duration: 2000 });
       this.isBoardConnected = false;
     }
+  }
+
+  private stopAutoLogic(): void {
+    this.zone1.isExit = true;
+    if (this.zone1.autoManagerThread !== null) {
+      clearInterval(this.zone1.autoManagerThread);
+      this.zone1.autoManagerThread = null;
+    }
+  }
+
+  private handleManualPageVisibility(isVisible: boolean): void {
+    if (!isVisible) {
+      return;
+    }
+    this.autoEnabled = false;
+    this.stopAutoLogic();
   }
 
   build() {
@@ -98,6 +113,9 @@ export struct ManualPage {
           this.customSlider('风扇主轴转速', this.fanValue, 0, 3, $r('app.media.wind1'), $r("app.media.wind2"),
             (val) => {
               this.fanValue = val;
+            },
+            (val) => {
+              this.fanValue = val;
               this.safePublish(TOPIC_FAN, val.toString());
             })
 
@@ -105,11 +123,17 @@ export struct ManualPage {
           this.customSlider('微型潜水泵', this.waterPumpValue, 0, 3, $r('app.media.water1'), $r("app.media.water2"),
             (val) => {
               this.waterPumpValue = val;
+            },
+            (val) => {
+              this.waterPumpValue = val;
               this.safePublish(TOPIC_WATER_PUMP, val.toString());
             })
 
           // 联动补光灯滑块
           this.customSlider('全光谱植物补光灯', this.ledValue, 0, 100, $r('app.media.light1'), $r("app.media.light2"),
+            (val) => {
+              this.ledValue = val;
+            },
             (val) => {
               this.ledValue = val;
               this.safePublish(TOPIC_LED, val.toString());
@@ -145,6 +169,9 @@ export struct ManualPage {
     .ignoreLayoutSafeArea()
     .height("100%")
     .padding({ left: 16, right: 16, top: 75, bottom: 32 })
+    .onVisibleAreaChange([0.0], (isVisible: boolean, currentRatio: number) => {
+      this.handleManualPageVisibility(isVisible && currentRatio > 0);
+    })
   }
 
   @Builder
@@ -176,14 +203,15 @@ export struct ManualPage {
   }
 
   @Builder
-  customSlider(label: string, value: number, min: number, max: number, icon1: Resource, icon2: Resource, onUpdate: (v: number) => void) {
+  customSlider(label: string, value: number, min: number, max: number, icon1: Resource, icon2: Resource,
+    onPreview: (v: number) => void, onCommit: (v: number) => void) {
     Column() {
       Row() {
         Text(label)
           .fontSize(13)
           .fontColor($r("sys.color.font_primary"))
         Blank()
-        Text(`${value} 级`)
+        Text(value === 0 ? '关闭' : `${value} 档`)
           .fontSize(13)
           .fontWeight(FontWeight.Medium)
           .fontColor($r("sys.color.font_secondary"))
@@ -195,8 +223,9 @@ export struct ManualPage {
           .layoutWeight(1)
           .onChange((val: number, mode: SliderChangeMode) => {
             let targetVal = Math.floor(val);
+            onPreview(targetVal);
             if (mode === SliderChangeMode.End || mode === SliderChangeMode.Click) {
-              onUpdate(targetVal);
+              onCommit(targetVal);
             }
           })
         Image(icon2).height(20).width(20)
