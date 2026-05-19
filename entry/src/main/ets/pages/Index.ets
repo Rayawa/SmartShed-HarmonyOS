@@ -7,6 +7,17 @@ import { BlurStrategy, hdsMaterial, HdsNavigationTitleMode, HdsTabsController } 
 import { ManualPage } from '../view/ManualPage';
 import { AutoPage } from '../view/AutoPage';
 
+AppStorage.setOrCreate('isBoardConnected', false);
+AppStorage.setOrCreate('autoEnabled', false);
+AppStorage.setOrCreate('temp', 28);
+AppStorage.setOrCreate('hum', 50);
+AppStorage.setOrCreate('intensity', 134);
+AppStorage.setOrCreate('moisture', 50);
+AppStorage.setOrCreate('fanValue', 0);
+AppStorage.setOrCreate('waterPumpValue', 0);
+AppStorage.setOrCreate('ledValue', 0);
+AppStorage.setOrCreate('zone1', new ZoneData());
+
 @Entry
 @Component
 struct Index {
@@ -26,30 +37,17 @@ struct Index {
   @State animStep2: boolean = false;
   @State animStep3: boolean = false;
 
-
   private mqttClient!: MqttReceiverClient;
 
   aboutToAppear(): void {
-    AppStorage.setOrCreate('isBoardConnected', false);
-    AppStorage.setOrCreate('autoEnabled', false);
-    AppStorage.setOrCreate('temp', 28);
-    AppStorage.setOrCreate('hum', 50);
-    AppStorage.setOrCreate('intensity', 134);
-    AppStorage.setOrCreate('moisture', 50);
-    AppStorage.setOrCreate('fanValue', 0);
-    AppStorage.setOrCreate('waterPumpValue', 0);
-    AppStorage.setOrCreate('ledValue', 0);
-    AppStorage.setOrCreate('zone1', new ZoneData());
     try {
       this.mqttClient = new MqttReceiverClient((topic: string, payload: string) => {
         this.onMqttMessage(topic, payload);
       });
-      this.isBoardConnected = true;
-
       this.mqttClient.onStart();
     } catch (error) {
       console.error(`[App] 初始化失败: ${JSON.stringify(error)}`);
-      this.isBoardConnected = true;
+      this.isBoardConnected = false;
       promptAction.showToast({ message: '板端通讯组件初始化失败', duration: 3000 });
     }
   }
@@ -99,7 +97,19 @@ struct Index {
     HdsNavigation() {
       HdsTabs({ controller: this.TabBarController }) {
         TabContent() {
-          ManualPage({ mqttClient: this.mqttClient })
+          ManualPage({
+            mqttClient: this.mqttClient,
+            isBoardConnected: $isBoardConnected,
+            autoEnabled: $autoEnabled,
+            temp: $temp,
+            hum: $hum,
+            intensity: $intensity,
+            moisture: $moisture,
+            fanValue: $fanValue,
+            waterPumpValue: $waterPumpValue,
+            ledValue: $ledValue,
+            zone1: $zone1
+          })
         }
         .tabBar(new BottomTabBarStyle($r('sys.media.wifi_router_fill'), "自定义模式"))
 

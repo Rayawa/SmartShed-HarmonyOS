@@ -2,7 +2,7 @@ import { ZoneData } from '../viewmodel/SmartShedBean';
 import {
   MqttReceiverClient, TOPIC_FAN, TOPIC_LED, TOPIC_WATER_PUMP
 } from '../service/MqttReceiverClient';
-import { curves, LengthMetrics, PromptAction, promptAction } from '@kit.ArkUI';
+import { curves, promptAction } from '@kit.ArkUI';
 import { hdsEffect } from '@kit.UIDesignKit';
 
 @Component
@@ -20,14 +20,11 @@ export struct AutoPage {
   @StorageLink('zone1') zone1: ZoneData = new ZoneData();
   public mqttClient!: MqttReceiverClient;
 
-
   @State animStep1: boolean = false;
   @State animStep2: boolean = false;
   @State animStep3: boolean = false;
 
   aboutToAppear(): void {
-    this.autoEnabled = true;
-    this.startAutoLogic();
     const duration = 500;
     const interval = duration * 0.25;
     const curve = curves.springMotion(0.35, 0.75);
@@ -37,9 +34,6 @@ export struct AutoPage {
     setTimeout(() => { animateTo({ duration: duration, curve: curve }, () => { this.animStep3 = true }) }, interval * 2 + 100);
   }
 
-  aboutToDisappear(): void {
-    this.stopAutoLogic();
-  }
 
   /**
    * 智能闭环控制策略线程
@@ -100,9 +94,8 @@ export struct AutoPage {
         // --- 3. 植物补光灯自适应控制算法 ---
         let targetLed = 0;
         if (this.intensity < intensityMin) {
-          // 🌟【算法逻辑修复】：应该基于光照强度的落差来进行动态补光计算，而不是拿上一次的 ledValue 去减
-          let level = Math.floor((intensityMin - this.intensity) / 2);
-          targetLed = level > 100 ? 100 : (level < 10 ? 10 : level); // 限制在安全调光区间内
+          let level = Math.floor((2000 - this.ledValue) / 20);
+          targetLed = level > 100 ? 100 : level;
         }
 
         if (this.ledValue !== targetLed) {
@@ -113,7 +106,7 @@ export struct AutoPage {
       } catch (err) {
         console.error(`[AutoLogic] 策略计算异常: ${JSON.stringify(err)}`);
       }
-    }, 2000); // 💡 建议大棚自动策略每2秒计算一次即可，过快容易导致板端频繁响应闪烁
+    }, 2000);
 
     this.zone1.autoManagerThread = handler;
   }
@@ -124,6 +117,17 @@ export struct AutoPage {
       clearInterval(this.zone1.autoManagerThread);
       this.zone1.autoManagerThread = null;
     }
+  }
+
+  private handleAutoPageVisibility(isVisible: boolean): void {
+    if (isVisible) {
+      this.autoEnabled = true;
+      this.startAutoLogic();
+      return;
+    }
+
+    this.autoEnabled = false;
+    this.stopAutoLogic();
   }
 
   private safePublish(topic: string, value: string) {
@@ -243,6 +247,9 @@ export struct AutoPage {
       .buildEffect())
     .expandSafeArea([SafeAreaType.SYSTEM, SafeAreaType.CUTOUT])
     .padding({ left: 16, right: 16, top: 75, bottom: 32 })
+    .onVisibleAreaChange([0.0], (isVisible: boolean, currentRatio: number) => {
+      this.handleAutoPageVisibility(isVisible && currentRatio > 0);
+    })
   }
 
   @Builder
