@@ -7,16 +7,18 @@ import { curves, promptAction } from '@kit.ArkUI';
 
 @Component
 export struct ManualPage {
-  @Link isBoardConnected: boolean;
-  @Link autoEnabled: boolean;
-  @Link temp: number;
-  @Link hum: number;
-  @Link intensity: number;
-  @Link moisture: number;
-  @Link fanValue: number;
-  @Link waterPumpValue: number;
-  @Link ledValue: number;
-  @Link zone1: ZoneData;
+  @StorageLink("vibrationON") vibrationON: boolean = true;
+
+  @StorageLink('isBoardConnected') isBoardConnected: boolean = false;
+  @StorageLink('autoEnabled') autoEnabled: boolean = false;
+  @StorageLink('temp') temp: number = 28;
+  @StorageLink('hum') hum: number = 50;
+  @StorageLink('intensity') intensity: number = 134;
+  @StorageLink('moisture') moisture: number = 50;
+  @StorageLink('fanValue') fanValue: number = 0;
+  @StorageLink('waterPumpValue') waterPumpValue: number = 0;
+  @StorageLink('ledValue') ledValue: number = 0;
+  @StorageLink('zone1') zone1: ZoneData = new ZoneData();
   public mqttClient!: MqttReceiverClient;
 
   @State animStep1: boolean = false;

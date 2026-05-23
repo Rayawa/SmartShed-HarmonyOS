@@ -2,10 +2,12 @@
 import { SensorData, ZoneData } from '../viewmodel/SmartShedBean';
 import { MqttReceiverClient } from '../service/MqttReceiverClient';
 import { HdsNavigation, HdsTabs, ScrollEffectType } from '@hms.hds.hdsBaseComponent';
-import { curves, LengthMetrics, promptAction } from '@kit.ArkUI';
-import { BlurStrategy, hdsMaterial, HdsNavigationTitleMode, HdsTabsController } from '@kit.UIDesignKit';
+import { curves, LengthMetrics, promptAction, display } from '@kit.ArkUI';
+import { BlurStrategy, hdsMaterial, HdsNavigationTitleMode, HdsTabsController, TitleSize } from '@kit.UIDesignKit';
 import { ManualPage } from '../view/ManualPage';
 import { AutoPage } from '../view/AutoPage';
+import { vibration } from '../service/vibration';
+import { consolePage } from './console';
 
 AppStorage.setOrCreate('isBoardConnected', false);
 AppStorage.setOrCreate('autoEnabled', false);
@@ -22,6 +24,19 @@ AppStorage.setOrCreate('zone1', new ZoneData());
 @Component
 struct Index {
   private TabBarController: HdsTabsController = new HdsTabsController();
+  @Provide('pageStack') pageStack: NavPathStack = new NavPathStack();
+  @StorageLink("vibrationON") vibrationON: boolean = true;
+  @State navBarWidth: string | number = '100%';
+  @State WVp: number = 3;
+
+  private toggleSplitMode(isSplit: boolean) {
+    animateTo({
+      curve: curves.springMotion(0.4, 0.8),
+      duration: 400
+    }, () => {
+      this.navBarWidth = isSplit ? (this.WVp - 390) : '100%';
+    })
+  }
 
   @StorageLink('isBoardConnected') isBoardConnected: boolean = false;
   @StorageLink('autoEnabled') autoEnabled: boolean = false;
@@ -40,6 +55,9 @@ struct Index {
   private mqttClient!: MqttReceiverClient;
 
   aboutToAppear(): void {
+    const displayInfo = display.getDefaultDisplaySync();
+    const screenWidthVp = px2vp(displayInfo.width);
+    this.WVp = screenWidthVp;
     try {
       this.mqttClient = new MqttReceiverClient((topic: string, payload: string) => {
         this.onMqttMessage(topic, payload);
@@ -93,22 +111,28 @@ struct Index {
     }
   }
 
+  @Builder
+  PageMap(name: string) {
+    if (name === "ConsolePage") {
+      consolePage({
+        onCloseSplit: () => {
+          animateTo({
+            curve: curves.springMotion(0.4, 0.8),
+            duration: 350
+          }, () => {
+            this.navBarWidth= '100%';
+          })
+        }
+      })
+    }
+  }
+
   build() {
     HdsNavigation() {
       HdsTabs({ controller: this.TabBarController }) {
         TabContent() {
           ManualPage({
             mqttClient: this.mqttClient,
-            isBoardConnected: $isBoardConnected,
-            autoEnabled: $autoEnabled,
-            temp: $temp,
-            hum: $hum,
-            intensity: $intensity,
-            moisture: $moisture,
-            fanValue: $fanValue,
-            waterPumpValue: $waterPumpValue,
-            ledValue: $ledValue,
-            zone1: $zone1
           })
         }
         .tabBar(new BottomTabBarStyle($r('sys.media.wifi_router_fill'), "自定义模式"))
@@ -134,8 +158,13 @@ struct Index {
       })
     }
     .ignoreLayoutSafeArea()
+    .titleMode(HdsNavigationTitleMode.MINI)
+    .mode(NavigationMode.Auto)
+    .navBarWidth(this.navBarWidth)
+    .navDestination(this.PageMap)
+    .divider({ color: $r('app.color.border')  })
     .height("100%")
-    .titleMode(HdsNavigationTitleMode.FULL)
+    .titleMode(HdsNavigationTitleMode.MODAL)
     .titleBar({
       style: {
         scrollEffectOpts: {
@@ -155,7 +184,34 @@ struct Index {
           },
         },
       },
-      content: { title: { mainTitle: "智慧大棚控制终端" } },
+      content: {
+        title: {
+          mainTitle: "智慧大棚控制终端",
+          mainTitleSize: TitleSize.TITLE_S,
+        },
+        menu: {
+          value: [
+            {
+              content: {
+                label: "console",
+                icon: $r("sys.symbol.gearshape"),
+                isEnabled: true,
+                action: () => {
+                  if(this.vibrationON) vibration.dotVibration()
+                  let index = this.pageStack.getIndexByName("ConsolePage");
+                  if (index.length > 0) {
+                    this.pageStack.moveToTop("UserPage");
+                  } else {
+                    this.pageStack.pushPathByName("UserPage", null);
+                    this.toggleSplitMode(true);
+                  }
+                },
+              },
+            },
+
+          ],
+        },
+      },
     });
   }
 }
