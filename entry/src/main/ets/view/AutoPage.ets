@@ -8,6 +8,8 @@ import { hdsEffect } from '@kit.UIDesignKit';
 @Component
 export struct AutoPage {
   @State ShaderEffectController: hdsEffect.ShaderEffectController = new hdsEffect.ShaderEffectController();
+  @StorageLink("vibrationON") vibrationON: boolean = true;
+
   @StorageLink('isBoardConnected') isBoardConnected: boolean = false;
   @StorageLink('autoEnabled') autoEnabled: boolean = false;
   @StorageLink('temp') temp: number = 28;
