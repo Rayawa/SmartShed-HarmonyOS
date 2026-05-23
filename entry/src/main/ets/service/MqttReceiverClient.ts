@@ -3,6 +3,8 @@ import { BusinessError } from '@kit.BasicServicesKit';
 import { socket } from '@kit.NetworkKit';
 import { util } from '@kit.ArkTS';
 
+export enum LogType { RECEIVE, SEND, ERROR }
+
 const MAX_MQTT_CLIENTID_LENGTH = 22;
 const MQTT_CLIENT_ID = 'SmartShed_Pad';
 
@@ -123,9 +125,15 @@ export class MqttReceiverClient {
     console.info(`[MQTT] 订阅下发: ${JSON.stringify(topics)}`);
   }
 
+  private logCallback: ((type: LogType, content: string) => void) | null = null;
+
+  public setLogCallback(cb: (type: LogType, content: string) => void) {
+    this.logCallback = cb;
+  }
+
   public publish(topic: string, msg: string): void {
     if (!this.connected || !this.tcpSocket) {
-      console.warn(`[MQTT] 未连上服务器，拒绝发送 -> ${topic}:${msg}`);
+      this.logCallback?.(LogType.ERROR, `拒绝发送 -> ${topic}:${msg}`); // 记录错误
       return;
     }
 
@@ -136,6 +144,7 @@ export class MqttReceiverClient {
     const payload = [...topicLen, ...topicBytes, ...msgBytes];
     const packet = this.buildMqttPacket(0x30, payload);
     this.sendPacket(packet);
+    this.logCallback?.(LogType.SEND, `${topic}: ${msg}`); // 记录发送
   }
 
   private startHeartbeat(): void {
@@ -244,14 +253,11 @@ export class MqttReceiverClient {
 
     if (pos + topicLen > endPos) return;
     const topic = this.utf8BytesToString(bytes.slice(pos, pos + topicLen));
-    pos += topicLen;
+    const payload = this.utf8BytesToString(bytes.slice(pos + topicLen, endPos));
 
-    const payload = this.utf8BytesToString(bytes.slice(pos, endPos));
-    console.info(`[MQTT] 收到主题 -> ${topic} : ${payload}`);
+    this.logCallback?.(LogType.RECEIVE, `${topic}: ${payload}`); // 记录接收
 
-    if (this.callback) {
-      this.callback(topic, payload);
-    }
+    if (this.callback) this.callback(topic, payload);
   }
 
   // 同步通知到全局 AppStorage，驱动 UI 改变

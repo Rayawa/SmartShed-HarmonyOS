@@ -1,6 +1,6 @@
 // index.ets
 import { SensorData, ZoneData } from '../viewmodel/SmartShedBean';
-import { MqttReceiverClient } from '../service/MqttReceiverClient';
+import { LogType, MqttReceiverClient } from '../service/MqttReceiverClient';
 import { HdsNavigation, HdsTabs, ScrollEffectType } from '@hms.hds.hdsBaseComponent';
 import { curves, LengthMetrics, promptAction, display } from '@kit.ArkUI';
 import { BlurStrategy, hdsMaterial, HdsNavigationTitleMode, HdsTabsController, TitleSize } from '@kit.UIDesignKit';
@@ -8,6 +8,7 @@ import { ManualPage } from '../view/ManualPage';
 import { AutoPage } from '../view/AutoPage';
 import { vibration } from '../service/vibration';
 import { consolePage } from './console';
+import { LogMessage } from '../viewmodel/ConsoleBean.ts';
 
 AppStorage.setOrCreate('isBoardConnected', false);
 AppStorage.setOrCreate('autoEnabled', false);
@@ -51,6 +52,7 @@ struct Index {
   @State animStep1: boolean = false;
   @State animStep2: boolean = false;
   @State animStep3: boolean = false;
+  @State logList: LogMessage[] = [];
 
   private mqttClient!: MqttReceiverClient;
 
@@ -62,6 +64,16 @@ struct Index {
       this.mqttClient = new MqttReceiverClient((topic: string, payload: string) => {
         this.onMqttMessage(topic, payload);
       });
+
+      // 绑定日志回调
+      this.mqttClient.setLogCallback((type: LogType, content: string) => {
+        const now = new Date();
+        const timeStr = `${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`;
+        this.logList.push({ id: Date.now(), time: timeStr, type, content });
+        // 防止日志过多导致内存溢出
+        if (this.logList.length > 100) this.logList.shift();
+      });
+
       this.mqttClient.onStart();
     } catch (error) {
       console.error(`[App] 初始化失败: ${JSON.stringify(error)}`);
@@ -115,6 +127,7 @@ struct Index {
   PageMap(name: string) {
     if (name === "ConsolePage") {
       consolePage({
+        logList: this.logList,
         onCloseSplit: () => {
           animateTo({
             curve: curves.springMotion(0.4, 0.8),
@@ -202,7 +215,7 @@ struct Index {
                   if (index.length > 0) {
                     this.pageStack.moveToTop("UserPage");
                   } else {
-                    this.pageStack.pushPathByName("UserPage", null);
+                    this.pageStack.pushPathByName("ConsolePage", null);
                     this.toggleSplitMode(true);
                   }
                 },
