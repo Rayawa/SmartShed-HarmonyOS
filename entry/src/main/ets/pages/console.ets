@@ -8,7 +8,7 @@ export struct consolePage {
   onCloseSplit?: () => void;
   @StorageLink("vibrationON") vibrationON: boolean = true;
   @Consume('pageStack') pageStack: NavPathStack;
-  @Link logList: LogMessage[]; // 使用 @Link 实时同步 Index 的数据
+  @Link logList: LogMessage[];
   private scroller: Scroller = new Scroller();
 
   // 添加日志的方法
@@ -41,21 +41,15 @@ export struct consolePage {
   build() {
     HdsNavDestination() {
       Column() {
-        // 顶部操作栏
-        Row() {
-          Text("通信控制台").fontSize(18).fontWeight(FontWeight.Bold)
-          Blank()
-          Button("清空").onClick(() => this.logList = []).backgroundColor(Color.Transparent).fontColor(Color.Gray)
-        }.padding(10).width('100%')
-
-        List({ scroller: this.scroller }) {
+        List({ scroller: this.scroller }) { // 绑定 scroller
           ForEach(this.logList, (item: LogMessage) => {
             ListItem() {
-              Row() {
-                Text(`${item.time} `).fontColor(Color.Gray).fontSize(10)
-                Text(item.type === LogType.SEND ? "[OUT] " : "[IN] ")
-                  .fontColor(item.type === LogType.SEND ? '#F39C12' : '#27AE60')
-                Text(item.content).fontColor(Color.White).fontSize(12)
+              Row({ space: 5 }) {
+                Text(`[${item.time}]`).fontSize(10).fontColor(Color.Gray)
+                Text(item.type === LogType.SEND ? "OUT" : "IN")
+                  .fontColor(this.getTypeColor(item.type))
+                  .fontWeight(FontWeight.Bold)
+                Text(item.content).fontColor(Color.White).fontSize(12).textOverflow({ overflow: TextOverflow.Ellipsis })
               }
             }
           })
@@ -63,7 +57,7 @@ export struct consolePage {
         .width('100%')
         .layoutWeight(1)
         .padding(10)
-        .backgroundColor('#1A000000') // 微弱的背景色
+        .backgroundColor('#1A000000')
         .borderRadius(8)
       }
       .padding(10)
@@ -132,6 +126,21 @@ export struct consolePage {
       content: {
         title: {
           mainTitle: "终端",
+        },
+        menu: {
+          value: [
+            {
+              content: {
+                label: "clear",
+                icon: $r("sys.symbol.clock"),
+                isEnabled: true,
+                action: () => {
+                  if(this.vibrationON) vibration.dotVibration()
+                  this.logList = [];
+                },
+              },
+            },
+          ],
         },
         backIcon: {
           action: () => {
