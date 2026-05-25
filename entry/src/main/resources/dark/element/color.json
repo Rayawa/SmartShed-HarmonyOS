@@ -5,45 +5,20 @@
       "value": "#0F1A2A"
     },
     {
-      "name": "background",
-      "value": "#1A2B3C"
+      "name": "backcolor",
+      "value": "#0B0F17FF"
     },
-
+    {
+      "name": "background",
+      "value": "#161B26FF"
+    },
     {
       "name": "diff_background",
-      "value": "#FF121E29"
-    },
-    {
-      "name": "mask_color",
-      "value": "#33000000"
-    },
-    {
-      "name": "light_color",
-      "value": "#33E5E5E5"
-    },
-    {
-      "name": "button_border",
-      "value": "#626B74"
-    },
-    {
-      "name": "backcolor",
-      "value": "#1D2328"
-    },
-    {
-      "name": "navcolor",
-      "value": "#FF0B131F"
+      "value": "#222A3CFF"
     },
     {
       "name": "border",
-      "value": "#2A3B4C"
-    },
-    {
-      "name": "border_AI",
-      "value": "#623AA2"
-    },
-    {
-      "name": "diff_content",
-      "value": "#4A9CE2"
+      "value": "#2D3748FF"
     }
   ]
 }

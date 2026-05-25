@@ -7,6 +7,22 @@ import { hdsEffect } from '@kit.UIDesignKit';
 
 @Component
 export struct ManualPage {
+  @StorageLink("vibrationON") vibrationON: boolean = true;
+  @StorageLink("isWideScreen") isWideScreen: boolean = true;
+  @StorageLink('isBoardConnected') isBoardConnected: boolean = false;
+  @StorageLink('autoEnabled') autoEnabled: boolean = false;
+
+  @StorageLink('temp') temp: number = 28;
+  @StorageLink('hum') hum: number = 50;
+  @StorageLink('intensity') intensity: number = 134;
+  @StorageLink('moisture') moisture: number = 50;
+  @StorageLink('fanValue') fanValue: number = 0;
+  @StorageLink('waterPumpValue') waterPumpValue: number = 0;
+  @StorageLink('ledValue') ledValue: number = 0;
+  @StorageLink('zone1') zone1: ZoneData = new ZoneData();
+  public mqttClient!: MqttReceiverClient;
+
+  @State lightColor: string = "#1f1e33";
   @State lightIntensity: number = 10;
   @State illuminatedType: hdsEffect.PointLightIlluminatedType = hdsEffect.PointLightIlluminatedType.NONE;
   @State button_gradient_state: hdsEffect.PressShadowType = hdsEffect.PressShadowType.NONE;
@@ -26,22 +42,6 @@ export struct ManualPage {
   @State lightSourceType1: hdsEffect.PointLightSourceType = hdsEffect.PointLightSourceType.NONE;
   @State lightSourceType2: hdsEffect.PointLightSourceType = hdsEffect.PointLightSourceType.NONE;
   @State lightSourceType3: hdsEffect.PointLightSourceType = hdsEffect.PointLightSourceType.NONE;
-
-  @StorageLink("vibrationON") vibrationON: boolean = true;
-  @StorageLink("isWideScreen") isWideScreen: boolean = true;
-
-  @StorageLink('isBoardConnected') isBoardConnected: boolean = false;
-  @StorageLink('autoEnabled') autoEnabled: boolean = false;
-  @StorageLink('temp') temp: number = 28;
-  @StorageLink('hum') hum: number = 50;
-  @StorageLink('intensity') intensity: number = 134;
-  @StorageLink('moisture') moisture: number = 50;
-  @StorageLink('fanValue') fanValue: number = 0;
-  @StorageLink('waterPumpValue') waterPumpValue: number = 0;
-  @StorageLink('ledValue') ledValue: number = 0;
-  @StorageLink('zone1') zone1: ZoneData = new ZoneData();
-  public mqttClient!: MqttReceiverClient;
-
   @State animStep1: number = 0;
   @State animStep2: number = 0;
   @State animStep3: number = 0;
@@ -137,6 +137,12 @@ export struct ManualPage {
           .fontSize(14)
           .fontColor(this.isBoardConnected ? '#1E661E' : '#A52A2A')
       }
+      .shadow({
+        radius: 8,
+        color: "#1a000000",
+        offsetX: 0,
+        offsetY: 2,
+      })
       .visualEffect(new hdsEffect.HdsEffectBuilder().pointLight({
         illuminatedType: this.illuminatedType,
       }).buildEffect())
@@ -145,7 +151,9 @@ export struct ManualPage {
       .width('100%')
       .padding({ left: 16, right: 16, top: 10, bottom: 10 })
       .backgroundColor(this.isBoardConnected ? '#E8F5E9' : '#FFEBEE')
-      .borderRadius(8)
+      .borderRadius(16)
+      .borderWidth(1)
+      .borderColor(this.isBoardConnected ? '#41BA41' : '#FF3B30')
 
       if(this.isBoardConnected){
         Flex({
@@ -168,7 +176,7 @@ export struct ManualPage {
                   sourceType: this.lightSourceTypeA,
                   illuminatedType: hdsEffect.PointLightIlluminatedType.BORDER_CONTENT,
                   options: {
-                    color: Color.White,
+                    color: this.lightColor,
                     intensity: this.lightIntensity,
                     height: 150
                   }
@@ -213,7 +221,7 @@ export struct ManualPage {
                   sourceType: this.lightSourceTypeB,
                   illuminatedType: hdsEffect.PointLightIlluminatedType.BORDER_CONTENT,
                   options: {
-                    color: Color.White,
+                    color: this.lightColor,
                     intensity: this.lightIntensity,
                     height: 150
                   }
@@ -262,7 +270,7 @@ export struct ManualPage {
                   sourceType: this.lightSourceTypeC,
                   illuminatedType: hdsEffect.PointLightIlluminatedType.BORDER_CONTENT,
                   options: {
-                    color: Color.White,
+                    color: this.lightColor,
                     intensity: this.lightIntensity,
                     height: 150
                   }
@@ -307,7 +315,7 @@ export struct ManualPage {
                   sourceType: this.lightSourceTypeD,
                   illuminatedType: hdsEffect.PointLightIlluminatedType.BORDER_CONTENT,
                   options: {
-                    color: Color.White,
+                    color: this.lightColor,
                     intensity: this.lightIntensity,
                     height: 150
                   }
@@ -346,14 +354,13 @@ export struct ManualPage {
           .opacity(this.animStep2 ? 1 : 0)
           .translate({ y: this.animStep2 ? 0 : 20 })
 
-          Column({ space: 10 }) {
-
+          Column({ space: 12 }) {
             Text('手动控制')
               .padding(5)
               .fontSize(17)
               .fontWeight(FontWeight.Bold)
               .width('100%')
-              .fontColor($r("app.color.diff_content"))
+              .fontColor($r("sys.color.font_primary"))
 
             Column() {
               Row() {
@@ -383,7 +390,7 @@ export struct ManualPage {
                 sourceType: this.lightSourceType1,
                 illuminatedType: hdsEffect.PointLightIlluminatedType.BORDER,
                 options: {
-                  color: Color.White,
+                  color: this.lightColor,
                   intensity: this.lightIntensity,
                   height: 150
                 }
@@ -430,7 +437,7 @@ export struct ManualPage {
                 sourceType: this.lightSourceType2,
                 illuminatedType: hdsEffect.PointLightIlluminatedType.BORDER,
                 options: {
-                  color: Color.White,
+                  color: this.lightColor,
                   intensity: this.lightIntensity,
                   height: 150
                 }
@@ -477,7 +484,7 @@ export struct ManualPage {
                 sourceType: this.lightSourceType3,
                 illuminatedType: hdsEffect.PointLightIlluminatedType.BORDER,
                 options: {
-                  color: Color.White,
+                  color: this.lightColor,
                   intensity: this.lightIntensity,
                   height: 150
                 }
@@ -503,15 +510,13 @@ export struct ManualPage {
             offsetX: 0,
             offsetY: 2,
           })
-          .padding(10)
-          .borderWidth(1).borderColor($r("app.color.border"))
           .visualEffect(new hdsEffect.HdsEffectBuilder()
             .pressShadow(this.button_gradient_state)
             .pointLight({
               sourceType: this.lightSourceType,
               illuminatedType: hdsEffect.PointLightIlluminatedType.BORDER,
               options: {
-                color: Color.White,
+                color: this.lightColor,
                 intensity: this.lightIntensity,
                 height: 150
               }
@@ -529,13 +534,13 @@ export struct ManualPage {
             }
           })
           .width(this.isWideScreen ? 'calc(50% - 8vp)' : '100%')
+          .padding(10)
+          .borderWidth(1).borderColor($r("app.color.border"))
           .backgroundColor($r("app.color.background"))
           .borderRadius(16)
           .opacity(this.animStep3 ? 1 : 0)
           .translate({ y: this.animStep3 ? 0 : 20 })
         }
-
-
       } else {
         Column({ space: 12 }) {
           LoadingProgress().width(80).height(80).color(Color.Black)
@@ -547,6 +552,8 @@ export struct ManualPage {
         .justifyContent(FlexAlign.Center)
       }
     }
+    .height("100%")
+    .padding({ left: 16, right: 16, top: 75, bottom: 32 })
     .onAreaChange((oldValue: Area, newValue: Area) => {
       let currentWidth = newValue.width as number;
       let newWideState = currentWidth >= 600;
@@ -565,8 +572,5 @@ export struct ManualPage {
     })
     .backgroundColor($r("app.color.backcolor"))
     .ignoreLayoutSafeArea()
-    .height("100%")
-    .padding({ left: 16, right: 16, top: 75, bottom: 32 })
   }
-
 }

@@ -10,7 +10,6 @@ import { vibration } from '../service/vibration';
 import { consolePage } from './console';
 import { LogMessage } from '../viewmodel/ConsoleBean';
 
-// 🚀 新增：定义一个纯粹、轻量化的全局日志分发单例
 export class GlobalLogBus {
   private static onLogEmit: ((type: LogType, content: string) => void) | null = null;
 
@@ -95,6 +94,8 @@ struct Index {
       this.isBoardConnected = false;
       promptAction.showToast({ message: '板端通讯组件初始化失败', duration: 3000 });
     }
+    if(this.isWideScreen) { this.toggleSplitMode(true); this.pageStack.pushPathByName("ConsolePage", null);}
+    else this.toggleSplitMode(false);
   }
 
   aboutToDisappear(): void {
@@ -194,7 +195,6 @@ struct Index {
         if(this.vibrationON) vibration.dotVibration();
         this.currentTabIndex = index;
       })
-      .animation({ curve: curves.springMotion(0.8, 0.8), duration: 400 })
       .blurStrategy(BlurStrategy.ENABLE)
       .barOverlap(true)
       .barPosition(BarPosition.End)

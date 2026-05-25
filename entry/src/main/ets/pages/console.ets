@@ -2,6 +2,7 @@ import { hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignK
 import { LengthMetrics } from '@kit.ArkUI';
 import { vibration } from '../service/vibration';
 import { LogMessage, LogType } from '../viewmodel/ConsoleBean';
+import { hdsEffect } from '@kit.UIDesignKit';
 
 @Component
 export struct consolePage {
@@ -9,8 +10,10 @@ export struct consolePage {
   private scroller: Scroller = new Scroller();
   @StorageLink("vibrationON") vibrationON: boolean = true;
   @Consume('pageStack') pageStack: NavPathStack;
-
+  @State controller: hdsEffect.ShaderEffectController = new hdsEffect.ShaderEffectController();
+  @StorageLink("linkAutoBG") animStep1: number = 0;
   @State @Watch('onLogListChange') logList: LogMessage[] = [];
+  @StorageLink('autoEnabled') autoEnabled: boolean = false;
   private isAtBottom: boolean = true;
   onLogListChange() {
     if (this.isAtBottom) {
@@ -59,58 +62,78 @@ export struct consolePage {
 
   build() {
     HdsNavDestination() {
-      Column() {
-        Blank().height(100)
-        List({ scroller: this.scroller }) {
-          ForEach(this.logList, (item: LogMessage) => {
-            ListItem() {
-              Row({ space: 5 }) {
-                Text(`[${this.getTime(item.time)}]`)
-                  .fontSize(10)
-                  .fontColor(Color.Gray)
-                  .flexShrink(0)
-
-                Text(`[${this.getTypeLabel(item.type)}]`)
-                  .fontColor(this.getTypeColor(item.type))
-                  .fontSize(12)
-                  .fontWeight(FontWeight.Bold)
-                  .flexShrink(0)
-
-                Text(item.content)
-                  .fontColor(this.getTypeColor(item.type))
-                  .fontSize(12)
-                  .textOverflow({ overflow: TextOverflow.Ellipsis })
+      Stack(){
+        Column()
+          .opacity(this.animStep1 ? 1 : 0)
+          .width("100%").height("100%")
+          .visualEffect(new hdsEffect.HdsEffectBuilder()
+          .shaderEffect(this.autoEnabled? {
+            effectType: hdsEffect.EffectType.UV_BACKGROUND_FLOW_LIGHT,
+            animation: {
+              duration: 10000,
+              iterations: -1,
+              autoPlay: true,
+              onFinish: ()=> {
+                console.info('Succeeded in finishing');
               }
-              .width("99%")
-              .align(Alignment.Start)
+            },
+            controller: this.controller
+          } : undefined)
+          .buildEffect())
+        Column() {
+          Blank().height(100)
+          List({ scroller: this.scroller }) {
+            ForEach(this.logList, (item: LogMessage) => {
+              ListItem() {
+                Row({ space: 5 }) {
+                  Text(`[${this.getTime(item.time)}]`)
+                    .fontSize(10)
+                    .fontColor(Color.Gray)
+                    .flexShrink(0)
+
+                  Text(`[${this.getTypeLabel(item.type)}]`)
+                    .fontColor(this.getTypeColor(item.type))
+                    .fontSize(12)
+                    .fontWeight(FontWeight.Bold)
+                    .flexShrink(0)
+
+                  Text(item.content)
+                    .fontColor(this.getTypeColor(item.type))
+                    .fontSize(12)
+                    .textOverflow({ overflow: TextOverflow.Ellipsis })
+                }
+                .width("99%")
+                .align(Alignment.Start)
+              }
+              .borderRadius(16)
+            })
+          }
+          .onScrollIndex((end: number) => {
+            if (end >= this.logList.length - 4) {
+              this.isAtBottom = true;
+            } else {
+              this.isAtBottom = false;
             }
-            .borderRadius(16)
+          })
+          .width('96%')
+          .padding({ left: 10, right: 10, bottom: 10 })
+          .margin({ bottom: 20 })
+          .layoutWeight(1)
+          .borderWidth(0.5)
+          .borderColor($r("app.color.border"))
+          .backgroundColor($r("app.color.background"))
+          .borderRadius(16)
+          .shadow({
+            radius: 8,
+            color: "#1a000000",
+            offsetX: 0,
+            offsetY: 2,
           })
         }
-        .onScrollIndex((end: number) => {
-          if (end >= this.logList.length - 1) {
-            this.isAtBottom = true;
-          } else {
-            this.isAtBottom = false;
-          }
-        })
-        .width('90%')
-        .padding({ left: 10, right: 10, bottom: 10 })
-        .margin({ bottom: 20 })
-        .layoutWeight(1)
-        .borderWidth(0.5)
-        .borderColor($r("app.color.border"))
-        .backgroundColor($r("app.color.background"))
-        .borderRadius(16)
-        .shadow({
-          radius: 8,
-          color: "#1a000000",
-          offsetX: 0,
-          offsetY: 2,
-        })
+        .width("100%").height("100%")
       }
-      .backgroundColor($r("app.color.backcolor"))
     }
+    .height("100%").width("100%")
     .backgroundColor($r("app.color.backcolor"))
     .onBackPressed(() => {
       if (this.vibrationON) vibration.dotVibration();
@@ -162,7 +185,7 @@ export struct consolePage {
         }
       },
       content: {
-        title: { mainTitle: "终端" },
+        title: { mainTitle: "日志" },
         backIcon: {
           action: () => {
             if (this.vibrationON) vibration.dotVibration()
