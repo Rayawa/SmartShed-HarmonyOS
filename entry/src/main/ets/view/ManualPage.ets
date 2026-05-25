@@ -20,13 +20,36 @@ export struct ManualPage {
   @StorageLink('zone1') zone1: ZoneData = new ZoneData();
   public mqttClient!: MqttReceiverClient;
 
-  @State animStep1: boolean = false;
-  @State animStep2: boolean = false;
-  @State animStep3: boolean = false;
+  @State animStep1: number = 0;
+  @State animStep2: number = 0;
+  @State animStep3: number = 0;
+  private timer1: number = -1;
+  private timer2: number = -1;
+  private timer3: number = -1;
+  @Prop @Watch('onVisibleChange') isVisible: boolean = false;
+  onVisibleChange(){
+    this.handleManualPageVisibility(this.isVisible);
+  }
+  private startEnterAnimation(): void {
+    this.stopEnterAnimation();
+    const duration = 500;
+    const interval = duration * 0.25;
+    const curve = curves.springMotion(0.35, 0.75);
+    this.timer1 = setTimeout(() => { animateTo({ duration: duration, curve: curve }, () => { this.animStep1 = 1 }) }, 100);
+    this.timer2 = setTimeout(() => { animateTo({ duration: duration, curve: curve }, () => { this.animStep2 = 1 }) }, interval + 100);
+    this.timer3 = setTimeout(() => { animateTo({ duration: duration, curve: curve }, () => { this.animStep3 = 1 }) }, interval * 2 + 100);
+  }
+  private stopEnterAnimation(): void {
+    if (this.timer1 !== -1) { clearTimeout(this.timer1); this.timer1 = -1; }
+    if (this.timer2 !== -1) { clearTimeout(this.timer2); this.timer2 = -1; }
+    if (this.timer3 !== -1) { clearTimeout(this.timer3); this.timer3 = -1; }
+    this.animStep1 = 0;
+    this.animStep2 = 0;
+    this.animStep3 = 0;
+  }
 
   private printLog(type: LogType, message: string): void {
     GlobalLogBus.emit(type, `Manual: ${message}`);
-
     const now = new Date();
     const timeStr = `${now.toLocaleTimeString()}.${String(now.getMilliseconds()).padStart(3, '0')}`;
     const logHeader = `[${timeStr}] [MQTT_${type}]`;
@@ -38,17 +61,24 @@ export struct ManualPage {
   }
 
   aboutToAppear(): void {
-    const duration = 500;
-    const interval = duration * 0.25;
-    const curve = curves.springMotion(0.35, 0.75);
     this.autoEnabled = false;
     this.printLog(LogType.INFO, "已切换到自定义模式");
-
-    setTimeout(() => { animateTo({ duration: duration, curve: curve }, () => { this.animStep1 = true }) }, 100);
-    setTimeout(() => { animateTo({ duration: duration, curve: curve }, () => { this.animStep2 = true }) }, interval + 100);
-    setTimeout(() => { animateTo({ duration: duration, curve: curve }, () => { this.animStep3 = true }) }, interval * 2 + 100);
+    if (this.isVisible) {
+      this.handleManualPageVisibility(true);
+    }
   }
-
+  aboutToDisappear(): void {
+    this.handleManualPageVisibility(false);
+  }
+  private handleManualPageVisibility(visible: boolean): void {
+    if (visible) {
+      this.autoEnabled = false;
+      this.stopAutoLogic();
+      this.startEnterAnimation();
+    } else {
+      this.stopEnterAnimation();
+    }
+  }
   private safePublish(topic: string, value: string) {
     try {
       if (this.mqttClient) {
@@ -73,13 +103,6 @@ export struct ManualPage {
     }
   }
 
-  private handleManualPageVisibility(isVisible: boolean): void {
-    if (!isVisible) {
-      this.autoEnabled = false;
-      this.stopAutoLogic();
-    }
-  }
-
   build() {
     Column({ space: 16 }) {
       Blank().height(80)
@@ -91,6 +114,8 @@ export struct ManualPage {
           .fontSize(14)
           .fontColor(this.isBoardConnected ? '#1E661E' : '#A52A2A')
       }
+      .opacity(this.animStep1 ? 1 : 0)
+      .translate({ y: this.animStep1 ? 0 : 20 })
       .width('100%')
       .padding({ left: 16, right: 16, top: 10, bottom: 10 })
       .backgroundColor(this.isBoardConnected ? '#E8F5E9' : '#FFEBEE')
@@ -127,14 +152,14 @@ export struct ManualPage {
             }.width('100%').height('100%').padding(14).backgroundColor($r("sys.color.ohos_id_color_button_normal")).borderRadius(12).shadow({ radius: 8, color: 'rgba(0,0,0,0.04)', offsetX: 0, offsetY: 2 })
           }
         }
-        .opacity(this.animStep1 ? 1 : 0)
-        .translate({ y: this.animStep1 ? 0 : 20 })
         .columnsTemplate('1fr 1fr')
         .rowsTemplate('1fr 1fr')
         .columnsGap(12)
         .rowsGap(12)
         .width('100%')
         .height(160)
+        .opacity(this.animStep2 ? 1 : 0)
+        .translate({ y: this.animStep2 ? 0 : 20 })
 
         Column({ space: 14 }) {
           Text('手动控制')
@@ -212,14 +237,14 @@ export struct ManualPage {
               Image($r('app.media.light2')).height(20).width(20)
             }.alignItems(VerticalAlign.Center)
           }.width("100%").margin({ bottom: 4 })
-
         }
-        .opacity(this.animStep2 ? 1 : 0)
-        .translate({ y: this.animStep2 ? 0 : 20 })
         .width('100%')
         .padding(16)
         .backgroundColor($r("app.color.background"))
         .borderRadius(16)
+        .opacity(this.animStep3 ? 1 : 0)
+        .translate({ y: this.animStep3 ? 0 : 20 })
+
       } else {
         Column({ space: 12 }) {
           LoadingProgress().width(80).height(80).color(Color.Black)
@@ -231,12 +256,12 @@ export struct ManualPage {
         .justifyContent(FlexAlign.Center)
       }
     }
+    .onVisibleAreaChange([0.0], (isVisible: boolean, currentRatio: number) => {
+      this.handleManualPageVisibility(isVisible && currentRatio > 0);
+    })
     .backgroundColor($r("app.color.backcolor"))
     .ignoreLayoutSafeArea()
     .height("100%")
     .padding({ left: 16, right: 16, top: 75, bottom: 32 })
-    .onVisibleAreaChange([0.0], (isVisible: boolean, currentRatio: number) => {
-      this.handleManualPageVisibility(isVisible && currentRatio > 0);
-    })
   }
 }
