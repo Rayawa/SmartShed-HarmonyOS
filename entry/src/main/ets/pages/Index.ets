@@ -16,6 +16,9 @@ export class GlobalLogBus {
   public static register(cb: (type: LogType, content: string) => void) {
     GlobalLogBus.onLogEmit = cb;
   }
+  public static unregister() {
+    GlobalLogBus.onLogEmit = null;
+  }
 
   public static emit(type: LogType, content: string) {
     if (GlobalLogBus.onLogEmit) {
@@ -55,6 +58,7 @@ struct Index {
   @StorageLink('ledValue') ledValue: number = 0;
   @StorageLink('zone1') zone1: ZoneData = new ZoneData();
 
+  @StorageLink("lightIntensity") lightIntensity: number = 10;
   @State animStep1: boolean = false;
   @State animStep2: boolean = false;
   @State animStep3: boolean = false;
@@ -100,6 +104,7 @@ struct Index {
 
   aboutToDisappear(): void {
     this.zone1.isExit = true;
+    GlobalLogBus.unregister();
     if (this.zone1.autoManagerThread !== null) {
       clearInterval(this.zone1.autoManagerThread);
       this.zone1.autoManagerThread = null;
@@ -126,32 +131,27 @@ struct Index {
       const data: SensorData = JSON.parse(payload);
 
       this.isBoardConnected = true;
-      AppStorage.setOrCreate('isBoardConnected', true);
 
       if (topic === 'Rayawa/light_intensity_1' && data.intensity !== undefined) {
         const val = Number(data.intensity);
         this.intensity = val;
         this.zone1.bean.intensity = val;
-        AppStorage.setOrCreate('intensity', val);
       }
       else if (topic === 'Rayawa/soil_moisture_1' && data.moisture !== undefined) {
         const val = Number(data.moisture);
         this.moisture = val;
         this.zone1.bean.moisture = val;
-        AppStorage.setOrCreate('moisture', val);
       }
       else if (topic === 'Rayawa/temp_and_hum_1') {
         if (data.temp !== undefined) {
           const tVal = Number(data.temp);
           this.temp = tVal;
           this.zone1.bean.temp = tVal;
-          AppStorage.setOrCreate('temp', tVal);
         }
         if (data.hum !== undefined) {
           const hVal = Number(data.hum);
           this.hum = hVal;
           this.zone1.bean.hum = hVal;
-          AppStorage.setOrCreate('hum', hVal);
         }
       }
     } catch (e) {
@@ -202,8 +202,8 @@ struct Index {
       .scrollable(false)
       .barFloatingStyle({
         barBottomMargin: 30,
-        lightColor: Color.Transparent,
-        gradientMask: { maskColor: Color.Transparent, maskHeight: 92 },
+        lightColor: Color.White,
+        gradientMask: { maskColor: $r("app.color.backcolor"), maskHeight: 1 },
         systemMaterialEffect:{
           materialType: hdsMaterial.MaterialType.IMMERSIVE,
           materialLevel: hdsMaterial.MaterialLevel.EXQUISITE

@@ -22,9 +22,8 @@ export struct ManualPage {
   @StorageLink('zone1') zone1: ZoneData = new ZoneData();
   public mqttClient!: MqttReceiverClient;
 
-  @State lightColor: string = "#1f1e33";
-  @State lightIntensity: number = 10;
-  @State illuminatedType: hdsEffect.PointLightIlluminatedType = hdsEffect.PointLightIlluminatedType.NONE;
+  @StorageLink("lightColor") lightColor: ResourceColor = Color.White;
+  @StorageLink("lightIntensity") lightIntensity: number = 10;
   @State button_gradient_state: hdsEffect.PressShadowType = hdsEffect.PressShadowType.NONE;
   @State isPressed: boolean = false;
   @State isPressedA: boolean = false;
@@ -86,6 +85,7 @@ export struct ManualPage {
     this.isWideScreen = px2vp(display.getDefaultDisplaySync().width)>600? true: false;
     this.autoEnabled = false;
     this.printLog(LogType.INFO, "已切换到自定义模式");
+
     if (this.isVisible) {
       this.handleManualPageVisibility(true);
     }
@@ -96,6 +96,13 @@ export struct ManualPage {
   private handleManualPageVisibility(visible: boolean): void {
     if (visible) {
       this.autoEnabled = false;
+      if (this.isBoardConnected) {
+        this.printLog(LogType.INFO, "已进入手动模式，开始强制同步 App 档位至板子...");
+        this.safePublish(TOPIC_FAN, this.fanValue.toString());
+        this.safePublish(TOPIC_WATER_PUMP, this.waterPumpValue.toString());
+        this.safePublish(TOPIC_LED, this.ledValue.toString());
+        this.printLog(LogType.INFO, `同步完成 -> 风扇:${this.fanValue}档, 水泵:${this.waterPumpValue}档, 补光灯:${this.ledValue}%`);
+      }
       this.stopAutoLogic();
       this.startEnterAnimation();
     } else {
@@ -131,11 +138,11 @@ export struct ManualPage {
       Blank().height(80)
       Row() {
         Circle({ width: 8, height: 8 })
-          .fill(this.isBoardConnected ? '#41BA41' : '#FF3B30')
+          .fill(this.isBoardConnected ? $r("app.color.green_dark") : $r("app.color.red_dark"))
           .margin({ right: 6 })
         Text(this.isBoardConnected ? '已连接至Rayawa/Hi3861' : '与开发板连接已断开，请检查网络')
           .fontSize(14)
-          .fontColor(this.isBoardConnected ? '#1E661E' : '#A52A2A')
+          .fontColor(this.isBoardConnected ? $r("app.color.green_dark") : $r("app.color.red_dark"))
       }
       .shadow({
         radius: 8,
@@ -144,16 +151,16 @@ export struct ManualPage {
         offsetY: 2,
       })
       .visualEffect(new hdsEffect.HdsEffectBuilder().pointLight({
-        illuminatedType: this.illuminatedType,
+        illuminatedType: hdsEffect.PointLightIlluminatedType.BORDER_CONTENT,
       }).buildEffect())
       .opacity(this.animStep1 ? 1 : 0)
       .translate({ y: this.animStep1 ? 0 : 20 })
       .width('100%')
       .padding({ left: 16, right: 16, top: 10, bottom: 10 })
-      .backgroundColor(this.isBoardConnected ? '#E8F5E9' : '#FFEBEE')
+      .backgroundColor(this.isBoardConnected ? $r("app.color.green_light") : $r("app.color.red_light"))
       .borderRadius(16)
       .borderWidth(1)
-      .borderColor(this.isBoardConnected ? '#41BA41' : '#FF3B30')
+      .borderColor(this.isBoardConnected ? $r("app.color.green_dark") : $r("app.color.red_dark"))
 
       if(this.isBoardConnected){
         Flex({
@@ -375,8 +382,8 @@ export struct ManualPage {
                   .height(28).layoutWeight(1)
                   .onChange((val: number, mode: SliderChangeMode) => {
                     let targetVal = Math.floor(val);
-                    this.fanValue = targetVal;
                     if (mode === SliderChangeMode.End || mode === SliderChangeMode.Click) {
+                      this.fanValue = targetVal;
                       this.printLog(LogType.INFO, `通过滑块调节风扇档位 -> 设定为: ${targetVal} 档`);
                       this.safePublish(TOPIC_FAN, targetVal.toString());
                     }
@@ -422,8 +429,8 @@ export struct ManualPage {
                   .height(28).layoutWeight(1)
                   .onChange((val: number, mode: SliderChangeMode) => {
                     let targetVal = Math.floor(val);
-                    this.waterPumpValue = targetVal;
                     if (mode === SliderChangeMode.End || mode === SliderChangeMode.Click) {
+                      this.waterPumpValue = targetVal;
                       this.printLog(LogType.INFO, `通过滑块调节潜水泵档位 -> 设定为: ${targetVal} 档`);
                       this.safePublish(TOPIC_WATER_PUMP, targetVal.toString());
                     }
@@ -469,8 +476,8 @@ export struct ManualPage {
                   .height(28).layoutWeight(1)
                   .onChange((val: number, mode: SliderChangeMode) => {
                     let targetVal = Math.floor(val);
-                    this.ledValue = targetVal;
                     if (mode === SliderChangeMode.End || mode === SliderChangeMode.Click) {
+                      this.ledValue = targetVal;
                       this.printLog(LogType.INFO, `通过滑块调节植物灯亮度 -> 设定为: ${targetVal} %`);
                       this.safePublish(TOPIC_LED, targetVal.toString());
                     }

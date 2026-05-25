@@ -19,6 +19,22 @@
     {
       "name": "border",
       "value": "#2D3748FF"
+    },
+    {
+      "name": "red_dark",
+      "value": "#FF453A"
+    },
+    {
+      "name": "red_light",
+      "value": "#2C1414"
+    },
+    {
+      "name": "green_dark",
+      "value": "#30D158"
+    },
+    {
+      "name": "green_light",
+      "value": "#142918"
     }
   ]
 }

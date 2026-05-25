@@ -1,5 +1,5 @@
 import { hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit';
-import { LengthMetrics } from '@kit.ArkUI';
+import { curves, LengthMetrics } from '@kit.ArkUI';
 import { vibration } from '../service/vibration';
 import { LogMessage, LogType } from '../viewmodel/ConsoleBean';
 import { hdsEffect } from '@kit.UIDesignKit';
@@ -8,13 +8,27 @@ import { hdsEffect } from '@kit.UIDesignKit';
 export struct consolePage {
   onCloseSplit?: () => void;
   private scroller: Scroller = new Scroller();
+  @StorageLink("isWideScreen") isWideScreen: boolean = true;
   @StorageLink("vibrationON") vibrationON: boolean = true;
   @Consume('pageStack') pageStack: NavPathStack;
   @State controller: hdsEffect.ShaderEffectController = new hdsEffect.ShaderEffectController();
-  @StorageLink("linkAutoBG") animStep1: number = 0;
+  @State animStep1: number = 0;
+  private timer1: number = -1;
   @State @Watch('onLogListChange') logList: LogMessage[] = [];
   @StorageLink('autoEnabled') autoEnabled: boolean = false;
   private isAtBottom: boolean = true;
+
+  private startEnterAnimation(): void {
+    this.stopEnterAnimation();
+    const duration = 500;
+    const curve = curves.springMotion(0.35, 0.75);
+    if(this.isWideScreen) this.timer1 = setTimeout(() => { animateTo({ duration: duration, curve: curve }, () => { this.animStep1 = 1 }) }, 100);
+    else this.timer1 = setTimeout(() => { animateTo({ duration: duration, curve: curve }, () => { this.animStep1 = 1 }) }, 0);
+  }
+  private stopEnterAnimation(): void {
+    if (this.timer1 !== -1) { clearTimeout(this.timer1); this.timer1 = -1; }
+    this.animStep1 = 0;
+  }
   onLogListChange() {
     if (this.isAtBottom) {
       setTimeout(() => {
@@ -56,6 +70,13 @@ export struct consolePage {
     return timeStr.split(':').map(num => num.padStart(2, '0')).join(':');
   }
 
+  aboutToAppear(): void {
+    this.startEnterAnimation();
+  }
+  aboutToDisappear(): void {
+    this.stopEnterAnimation();
+  }
+
   onPageShow() {
     this.scroller.scrollEdge(Edge.Bottom);
   }
@@ -63,23 +84,26 @@ export struct consolePage {
   build() {
     HdsNavDestination() {
       Stack(){
-        Column()
-          .opacity(this.animStep1 ? 1 : 0)
-          .width("100%").height("100%")
-          .visualEffect(new hdsEffect.HdsEffectBuilder()
-          .shaderEffect(this.autoEnabled? {
-            effectType: hdsEffect.EffectType.UV_BACKGROUND_FLOW_LIGHT,
-            animation: {
-              duration: 10000,
-              iterations: -1,
-              autoPlay: true,
-              onFinish: ()=> {
-                console.info('Succeeded in finishing');
-              }
-            },
-            controller: this.controller
-          } : undefined)
-          .buildEffect())
+
+          Column()
+            .opacity(this.animStep1 ? 1 : 0)
+            .visibility(this.autoEnabled ? Visibility.Visible : Visibility.None)
+            .width("100%").height("100%")
+            .visualEffect(new hdsEffect.HdsEffectBuilder()
+              .shaderEffect({
+                effectType: hdsEffect.EffectType.UV_BACKGROUND_FLOW_LIGHT,
+                animation: {
+                  duration: 10000,
+                  iterations: -1,
+                  autoPlay: true,
+                  onFinish: ()=> {
+                    console.info('Succeeded in finishing');
+                  }
+                },
+                controller: this.controller
+              })
+              .buildEffect())
+
         Column() {
           Blank().height(100)
           List({ scroller: this.scroller }) {
@@ -101,7 +125,9 @@ export struct consolePage {
                     .fontColor(this.getTypeColor(item.type))
                     .fontSize(12)
                     .textOverflow({ overflow: TextOverflow.Ellipsis })
-                }
+                } .visualEffect(new hdsEffect.HdsEffectBuilder().pointLight({
+                  illuminatedType: hdsEffect.PointLightIlluminatedType.CONTENT,
+                }).buildEffect())
                 .width("99%")
                 .align(Alignment.Start)
               }
@@ -115,6 +141,7 @@ export struct consolePage {
               this.isAtBottom = false;
             }
           })
+
           .width('96%')
           .padding({ left: 10, right: 10, bottom: 10 })
           .margin({ bottom: 20 })

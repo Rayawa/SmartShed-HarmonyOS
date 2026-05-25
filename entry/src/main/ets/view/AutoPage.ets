@@ -24,9 +24,9 @@ export struct AutoPage {
   @StorageLink('zone1') zone1: ZoneData = new ZoneData();
   public mqttClient!: MqttReceiverClient;
 
-  @State lightColor: string = "#1f1e33";
-  @State lightIntensity: number = 10;
-  @State illuminatedType: hdsEffect.PointLightIlluminatedType = hdsEffect.PointLightIlluminatedType.NONE;
+  @StorageLink("lightColor") lightColor: ResourceColor = Color.White;
+  @StorageLink("lightIntensity") lightIntensity: number = 10;
+  @StorageLink("illuminatedType") illuminatedType: hdsEffect.PointLightIlluminatedType = hdsEffect.PointLightIlluminatedType.NONE;
   @State button_gradient_state: hdsEffect.PressShadowType = hdsEffect.PressShadowType.NONE;
   @State isPressed: boolean = false;
   @State isPressedA: boolean = false;
@@ -45,7 +45,7 @@ export struct AutoPage {
   @State lightSourceType2: hdsEffect.PointLightSourceType = hdsEffect.PointLightSourceType.NONE;
   @State lightSourceType3: hdsEffect.PointLightSourceType = hdsEffect.PointLightSourceType.NONE;
   @State controller: hdsEffect.ShaderEffectController = new hdsEffect.ShaderEffectController();
-  @StorageLink("linkAutoBG") animStep1: number = 0;
+  @State animStep1: number = 0;
   @State animStep2: number = 0;
   @State animStep3: number = 0;
   private timer1: number = -1;
@@ -93,17 +93,13 @@ export struct AutoPage {
       this.handleAutoPageVisibility(true);
     }
   }
-  aboutToDisappear(): void {
-    this.handleAutoPageVisibility(false);
-  }
+
   private handleAutoPageVisibility(visible: boolean): void {
     if (visible) {
       this.autoEnabled = true;
       this.startAutoLogic();
       this.startEnterAnimation();
     } else {
-      this.autoEnabled = false;
-      this.stopAutoLogic();
       this.stopEnterAnimation();
     }
   }
@@ -229,11 +225,11 @@ export struct AutoPage {
         Blank().height(80)
         Row() {
           Circle({ width: 8, height: 8 })
-            .fill(this.isBoardConnected ? '#41BA41' : '#FF3B30')
+            .fill(this.isBoardConnected ? $r("app.color.green_dark") : $r("app.color.red_dark"))
             .margin({ right: 6 })
           Text(this.isBoardConnected ? '已连接至Rayawa/Hi3861' : '与开发板连接已断开，请检查网络')
             .fontSize(14)
-            .fontColor(this.isBoardConnected ? '#1E661E' : '#A52A2A')
+            .fontColor(this.isBoardConnected ? $r("app.color.green_dark") : $r("app.color.red_dark"))
         }
         .shadow({
           radius: 8,
@@ -242,16 +238,16 @@ export struct AutoPage {
           offsetY: 2,
         })
         .visualEffect(new hdsEffect.HdsEffectBuilder().pointLight({
-          illuminatedType: this.illuminatedType,
+          illuminatedType: hdsEffect.PointLightIlluminatedType.BORDER_CONTENT,
         }).buildEffect())
         .opacity(this.animStep1 ? 1 : 0)
         .translate({ y: this.animStep1 ? 0 : 20 })
         .width('100%')
         .padding({ left: 16, right: 16, top: 10, bottom: 10 })
-        .backgroundColor(this.isBoardConnected ? '#E8F5E9' : '#FFEBEE')
+        .backgroundColor(this.isBoardConnected ? $r("app.color.green_light") : $r("app.color.red_light"))
         .borderRadius(16)
         .borderWidth(1)
-        .borderColor(this.isBoardConnected ? '#41BA41' : '#FF3B30')
+        .borderColor(this.isBoardConnected ? $r("app.color.green_dark") : $r("app.color.red_dark"))
 
         if(this.isBoardConnected){
           Flex({
@@ -475,12 +471,6 @@ export struct AutoPage {
               .layoutWeight(1)
               .width('100%')
             }
-            .shadow({
-              radius: 8,
-              color: "#1a000000",
-              offsetX: 0,
-              offsetY: 2,
-            })
             .width(this.isWideScreen ? 'calc(50% - 8vp)' : '100%')
             .height(160)
             .opacity(this.animStep2 ? 1 : 0)
@@ -496,18 +486,18 @@ export struct AutoPage {
 
               Column({ space: 10 }) {
                 Row({ space: 10 }) {
-                  this.inputField('温度上限', this.zone1.autoTempMax)
-                  this.inputField('空湿上限', this.zone1.autoHumMax)
+                  this.inputField('温度上限', () => this.zone1.autoTempMax, (v) => { this.zone1.autoTempMax = v })
+                  this.inputField('空湿上限', () => this.zone1.autoHumMax, (v) => { this.zone1.autoHumMax = v })
                 }.width('100%')
 
                 Row({ space: 10 }) {
-                  this.inputField('土湿下限', this.zone1.autoMoistureMin)
-                  this.inputField('土湿上限', this.zone1.autoMoistureMax)
+                  this.inputField('土湿下限', () => this.zone1.autoMoistureMin, (v) => { this.zone1.autoMoistureMin = v })
+                  this.inputField('土湿上限', () => this.zone1.autoMoistureMax, (v) => { this.zone1.autoMoistureMax = v })
                 }.width('100%')
 
                 Row({ space: 10 }) {
-                  this.inputField('光照下限', this.zone1.autoIntensityMin)
-                  this.inputField('光照上限', this.zone1.autoIntensityMax)
+                  this.inputField('光照下限', () => this.zone1.autoIntensityMin, (v) => { this.zone1.autoIntensityMin = v })
+                  this.inputField('光照上限', () => this.zone1.autoIntensityMax, (v) => { this.zone1.autoIntensityMax = v })
                 }.width('100%')
               }
               .width('100%')
@@ -585,14 +575,14 @@ export struct AutoPage {
   }
 
   @Builder
-  inputField(label: string, valueStr: string) {
+  inputField(label: string, getter: () => string, setter: (val: string) => void) {
     Row() {
       Text(label)
         .fontSize(13)
         .width(60)
         .fontColor($r("sys.color.font_secondary"))
-        .margin({ right: 5})
-      TextInput({ text: valueStr })
+        .margin({ right: 5 })
+      TextInput({ text: getter() })
         .fontSize(11)
         .height(28)
         .width(65)
@@ -601,6 +591,7 @@ export struct AutoPage {
         .borderRadius(6)
         .type(InputType.Number)
         .onChange((val: string) => {
+          setter(val);
           this.printLog(LogType.INFO, `用户修改自动阈值 [${label}] 为: ${val}`);
         })
     }
