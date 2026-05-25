@@ -1,7 +1,7 @@
 // src/main/ets/view/AutoPage.ets
 import { ZoneData } from '../viewmodel/SmartShedBean';
 import { MqttReceiverClient, TOPIC_FAN, TOPIC_LED, TOPIC_WATER_PUMP } from '../service/MqttReceiverClient';
-import { curves, LengthMetrics, promptAction } from '@kit.ArkUI';
+import { curves, display, LengthMetrics, promptAction } from '@kit.ArkUI';
 import { hdsEffect } from '@kit.UIDesignKit';
 import { LogType } from '../viewmodel/ConsoleBean';
 import { GlobalLogBus } from '../pages/Index';
@@ -9,6 +9,22 @@ import { GlobalLogBus } from '../pages/Index';
 
 @Component
 export struct AutoPage {
+  @StorageLink("vibrationON") vibrationON: boolean = true;
+  @StorageLink("isWideScreen") isWideScreen: boolean = true;
+  @StorageLink('isBoardConnected') isBoardConnected: boolean = false;
+  @StorageLink('autoEnabled') autoEnabled: boolean = false;
+
+  @StorageLink('temp') temp: number = 28;
+  @StorageLink('hum') hum: number = 50;
+  @StorageLink('intensity') intensity: number = 134;
+  @StorageLink('moisture') moisture: number = 50;
+  @StorageLink('fanValue') fanValue: number = 0;
+  @StorageLink('waterPumpValue') waterPumpValue: number = 0;
+  @StorageLink('ledValue') ledValue: number = 0;
+  @StorageLink('zone1') zone1: ZoneData = new ZoneData();
+  public mqttClient!: MqttReceiverClient;
+
+  @State lightColor: string = "#1f1e33";
   @State lightIntensity: number = 10;
   @State illuminatedType: hdsEffect.PointLightIlluminatedType = hdsEffect.PointLightIlluminatedType.NONE;
   @State button_gradient_state: hdsEffect.PressShadowType = hdsEffect.PressShadowType.NONE;
@@ -29,24 +45,7 @@ export struct AutoPage {
   @State lightSourceType2: hdsEffect.PointLightSourceType = hdsEffect.PointLightSourceType.NONE;
   @State lightSourceType3: hdsEffect.PointLightSourceType = hdsEffect.PointLightSourceType.NONE;
   @State controller: hdsEffect.ShaderEffectController = new hdsEffect.ShaderEffectController();
-
-  @StorageLink("vibrationON") vibrationON: boolean = true;
-  @StorageLink("isWideScreen") isWideScreen: boolean = true;
-
-  @StorageLink('isBoardConnected') isBoardConnected: boolean = false;
-  @StorageLink('autoEnabled') autoEnabled: boolean = false;
-  @StorageLink('temp') temp: number = 28;
-  @StorageLink('hum') hum: number = 50;
-  @StorageLink('intensity') intensity: number = 134;
-  @StorageLink('moisture') moisture: number = 50;
-  @StorageLink('fanValue') fanValue: number = 0;
-  @StorageLink('waterPumpValue') waterPumpValue: number = 0;
-  @StorageLink('ledValue') ledValue: number = 0;
-  @StorageLink('zone1') zone1: ZoneData = new ZoneData();
-  public mqttClient!: MqttReceiverClient;
-
-
-  @State animStep1: number = 0;
+  @StorageLink("linkAutoBG") animStep1: number = 0;
   @State animStep2: number = 0;
   @State animStep3: number = 0;
   private timer1: number = -1;
@@ -61,7 +60,6 @@ export struct AutoPage {
     const duration = 500;
     const interval = duration * 0.25;
     const curve = curves.springMotion(0.35, 0.75);
-
     this.timer1 = setTimeout(() => { animateTo({ duration: duration, curve: curve }, () => { this.animStep1 = 1 }) }, 100);
     this.timer2 = setTimeout(() => { animateTo({ duration: duration, curve: curve }, () => { this.animStep2 = 1 }) }, interval + 100);
     this.timer3 = setTimeout(() => { animateTo({ duration: duration, curve: curve }, () => { this.animStep3 = 1 }) }, interval * 2 + 100);
@@ -88,17 +86,12 @@ export struct AutoPage {
   }
 
   aboutToAppear(): void {
-    const duration = 500;
-    const interval = duration * 0.25;
-    const curve = curves.springMotion(0.35, 0.75);
+    this.isWideScreen = px2vp(display.getDefaultDisplaySync().width)>600? true: false;
     this.autoEnabled = true;
     this.printLog(LogType.INFO, "已切换到智能模式");
     if (this.isVisible) {
       this.handleAutoPageVisibility(true);
     }
-    setTimeout(() => { animateTo({ duration: duration, curve: curve }, () => { this.animStep1 = 1 }) }, 100);
-    setTimeout(() => { animateTo({ duration: duration, curve: curve }, () => { this.animStep2 = 1 }) }, interval + 100);
-    setTimeout(() => { animateTo({ duration: duration, curve: curve }, () => { this.animStep3 = 1 }) }, interval * 2 + 100);
   }
   aboutToDisappear(): void {
     this.handleAutoPageVisibility(false);
@@ -242,6 +235,12 @@ export struct AutoPage {
             .fontSize(14)
             .fontColor(this.isBoardConnected ? '#1E661E' : '#A52A2A')
         }
+        .shadow({
+          radius: 8,
+          color: "#1a000000",
+          offsetX: 0,
+          offsetY: 2,
+        })
         .visualEffect(new hdsEffect.HdsEffectBuilder().pointLight({
           illuminatedType: this.illuminatedType,
         }).buildEffect())
@@ -250,7 +249,9 @@ export struct AutoPage {
         .width('100%')
         .padding({ left: 16, right: 16, top: 10, bottom: 10 })
         .backgroundColor(this.isBoardConnected ? '#E8F5E9' : '#FFEBEE')
-        .borderRadius(8)
+        .borderRadius(16)
+        .borderWidth(1)
+        .borderColor(this.isBoardConnected ? '#41BA41' : '#FF3B30')
 
         if(this.isBoardConnected){
           Flex({
@@ -279,7 +280,7 @@ export struct AutoPage {
                     sourceType: this.lightSourceTypeA,
                     illuminatedType: hdsEffect.PointLightIlluminatedType.BORDER_CONTENT,
                     options: {
-                      color: Color.White,
+                      color: this.lightColor,
                       intensity: this.lightIntensity,
                       height: 150
                     }
@@ -331,7 +332,7 @@ export struct AutoPage {
                     sourceType: this.lightSourceTypeB,
                     illuminatedType: hdsEffect.PointLightIlluminatedType.BORDER_CONTENT,
                     options: {
-                      color: Color.White,
+                      color: this.lightColor,
                       intensity: this.lightIntensity,
                       height: 150
                     }
@@ -387,7 +388,7 @@ export struct AutoPage {
                     sourceType: this.lightSourceTypeC,
                     illuminatedType: hdsEffect.PointLightIlluminatedType.BORDER_CONTENT,
                     options: {
-                      color: Color.White,
+                      color: this.lightColor,
                       intensity: this.lightIntensity,
                       height: 150
                     }
@@ -439,7 +440,7 @@ export struct AutoPage {
                     sourceType: this.lightSourceTypeD,
                     illuminatedType: hdsEffect.PointLightIlluminatedType.BORDER_CONTENT,
                     options: {
-                      color: Color.White,
+                      color: this.lightColor,
                       intensity: this.lightIntensity,
                       height: 150
                     }
@@ -474,6 +475,12 @@ export struct AutoPage {
               .layoutWeight(1)
               .width('100%')
             }
+            .shadow({
+              radius: 8,
+              color: "#1a000000",
+              offsetX: 0,
+              offsetY: 2,
+            })
             .width(this.isWideScreen ? 'calc(50% - 8vp)' : '100%')
             .height(160)
             .opacity(this.animStep2 ? 1 : 0)
@@ -484,7 +491,7 @@ export struct AutoPage {
                 .fontSize(17)
                 .fontWeight(FontWeight.Bold)
                 .width('100%')
-                .fontColor($r("app.color.diff_content"))
+                .fontColor($r("sys.color.font_primary"))
                 .margin({ bottom: 4 })
 
               Column({ space: 10 }) {
@@ -505,13 +512,19 @@ export struct AutoPage {
               }
               .width('100%')
             }
+            .shadow({
+              radius: 8,
+              color: "#1a000000",
+              offsetX: 0,
+              offsetY: 2,
+            })
             .visualEffect(new hdsEffect.HdsEffectBuilder()
               .pressShadow(this.button_gradient_state)
               .pointLight({
                 sourceType: this.lightSourceType,
                 illuminatedType: hdsEffect.PointLightIlluminatedType.BORDER_CONTENT,
                 options: {
-                  color: Color.White,
+                  color: this.lightColor,
                   intensity: this.lightIntensity,
                   height: 150
                 }
@@ -530,7 +543,8 @@ export struct AutoPage {
               }
             })
             .width(this.isWideScreen ? 'calc(50% - 8vp)' : '100%')
-            .padding(16)
+            .padding(10)
+            .borderWidth(1).borderColor($r("app.color.border"))
             .backgroundColor($r("app.color.background"))
             .borderRadius(16)
             .opacity(this.animStep3 ? 1 : 0)
@@ -538,16 +552,8 @@ export struct AutoPage {
           }
         } else {
           Column({ space: 12 }) {
-            LoadingProgress()
-              .width(80)
-              .height(80)
-              .color(Color.Black)
-
-            Text('等待建立通信...')
-              .fontSize(18)
-              .fontWeight(FontWeight.Bold)
-              .fontColor(Color.Black)
-              .margin({ top: 20 })
+            LoadingProgress().width(80).height(80).color(Color.Black)
+            Text('等待建立通信...').fontSize(18).fontWeight(FontWeight.Bold).fontColor(Color.Black).margin({ top: 20 })
           }
           .opacity(this.animStep1 ? 1 : 0)
           .translate({ y: this.animStep1 ? 0 : 20 })
@@ -558,7 +564,6 @@ export struct AutoPage {
       .height("100%")
       .padding({ left: 16, right: 16, top: 75, bottom: 32 })
     }
-    .backgroundColor($r("app.color.backcolor"))
     .onAreaChange((oldValue: Area, newValue: Area) => {
       let currentWidth = newValue.width as number;
       let newWideState = currentWidth >= 600;
@@ -575,6 +580,7 @@ export struct AutoPage {
     .onVisibleAreaChange([0.0], (isVisible: boolean, currentRatio: number) => {
       this.handleAutoPageVisibility(isVisible && currentRatio > 0);
     })
+    .backgroundColor($r("app.color.backcolor"))
     .ignoreLayoutSafeArea()
   }
 
@@ -598,7 +604,6 @@ export struct AutoPage {
           this.printLog(LogType.INFO, `用户修改自动阈值 [${label}] 为: ${val}`);
         })
     }
-
     .layoutWeight(1)
   }
 }
