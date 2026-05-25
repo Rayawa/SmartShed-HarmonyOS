@@ -77,7 +77,6 @@ struct Index {
     const screenWidthVp = px2vp(displayInfo.width);
     this.WVp = screenWidthVp;
 
-    // 🚀 核心改进：把你的 logList 填充逻辑注册到全局总线上
     GlobalLogBus.register((type: LogType, content: string) => {
       const now = new Date();
       const timeStr = `${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`;
@@ -90,7 +89,6 @@ struct Index {
         this.onMqttMessage(topic, payload);
       });
 
-      // 让 MQTT 底层也吐给全局总线
       this.mqttClient.setLogCallback((type: LogType, content: string) => {
         GlobalLogBus.emit(type, content);
       });
@@ -180,22 +178,24 @@ struct Index {
       })
     }
   }
+  @State currentTabIndex: number = 0;
 
   build() {
     HdsNavigation(this.pageStack) {
       HdsTabs({ controller: this.TabBarController }) {
         TabContent() {
-          ManualPage({ mqttClient: this.mqttClient })
+          ManualPage({ mqttClient: this.mqttClient, isVisible: this.currentTabIndex === 0 })
         }
         .tabBar(new BottomTabBarStyle($r('sys.media.wifi_router_fill'), "自定义模式"))
 
         TabContent() {
-          AutoPage({ mqttClient: this.mqttClient })
+          AutoPage({ mqttClient: this.mqttClient, isVisible: this.currentTabIndex === 1 })
         }
         .tabBar(new BottomTabBarStyle($r('sys.media.wifi_router_fill'), "智能模式"))
       }
-      .onChange(() => {
-        if(this.vibrationON) vibration.dotVibration()
+      .onChange((index: number) => { // 🚀 修改：捕获 index
+        if(this.vibrationON) vibration.dotVibration();
+        this.currentTabIndex = index; // 更新当前活跃的 Tab
       })
       .animation({ curve: curves.springMotion(0.8, 0.8), duration: 400 })
       .blurStrategy(BlurStrategy.ENABLE)
