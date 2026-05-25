@@ -55,7 +55,6 @@ export struct consolePage {
 
   onPageShow() {
     this.scroller.scrollEdge(Edge.Bottom);
-    console.info("进入console页面")
   }
 
   build() {
@@ -82,6 +81,8 @@ export struct consolePage {
                   .fontSize(12)
                   .textOverflow({ overflow: TextOverflow.Ellipsis })
               }
+              .width("99%")
+              .align(Alignment.Start)
             }
             .borderRadius(16)
           })

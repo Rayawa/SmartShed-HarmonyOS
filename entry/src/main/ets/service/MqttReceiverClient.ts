@@ -26,15 +26,13 @@ export class MqttReceiverClient {
   private connected: boolean = false;
   private callback: MqttCallback | null = null;
 
-  // 定时器管理
   private reconnectTimer: number | null = null;
   private heartbeatTimer: number | null = null;
-  private boardOfflineCheckTimer: number | null = null; // 【新增】板子离线看门狗定时器
+  private boardOfflineCheckTimer: number | null = null;
 
-  // 状态与机制控制
-  private pingOutstanding: boolean = false; // 【新增】心跳未响应标记，防止假在线
-  private lastDataReceivedTime: number = 0; // 【新增】最后一次收到板子传感器数据的时间戳
-  private readonly BOARD_TIMEOUT_MS = 5000; // 【新增】判定板子离线的超时阈值（5秒）
+  private pingOutstanding: boolean = false;
+  private lastDataReceivedTime: number = 0;
+  private readonly BOARD_TIMEOUT_MS = 5000;
 
   private subscribeTopics: string[] = TOPICS_ALL;
   private textEncoder = new util.TextEncoder();
@@ -50,18 +48,13 @@ export class MqttReceiverClient {
     this.logCallback = cb;
   }
 
-  /**
-   * 统一日志包装器，自动格式化输出
-   */
   private printLog(type: LogType, message: string): void {
     const now = new Date();
     const timeStr = `${now.toLocaleTimeString()}.${String(now.getMilliseconds()).padStart(3, '0')}`;
     const logHeader = `[${timeStr}] [MQTT_${type}]`;
 
-    // 触发页面终端回调
     this.logCallback?.(type, message);
 
-    // 同步输出到 DevEco Studio 控制台以便过滤调试
     if (type === LogType.ERROR) {
       console.error(`${logHeader} ${message}`);
     } else {
@@ -178,12 +171,11 @@ export class MqttReceiverClient {
   private startHeartbeat(): void {
     if (this.heartbeatTimer !== null) clearInterval(this.heartbeatTimer);
 
-    this.pingOutstanding = false; // 重置心跳状态
+    this.pingOutstanding = false;
 
     this.heartbeatTimer = setInterval(() => {
       if (!this.connected) return;
 
-      // 【网络假死增强】如果上一次发了 PINGREQ，到本次周期触发仍没拿到 PINGRESP，说明连接已死
       if (this.pingOutstanding) {
         this.printLog(LogType.ERROR, `心跳超时检测异常：连续 ${this.keepAliveSeconds}s 没收到服务器 PINGRESP 响应，强制断开重连`);
         this.disconnectInternal();
@@ -198,10 +190,6 @@ export class MqttReceiverClient {
     }, this.keepAliveSeconds * 1000 * 0.75); // 15秒发送一次
   }
 
-  /**
-   * 【新增】端侧板子上报数据看门狗检测
-   * 专门用来绕过公网Broker虚假存活，直接通过高频数据流侦测板子硬件状态
-   */
   private startBoardOfflineWatcher(): void {
     if (this.boardOfflineCheckTimer !== null) {
       clearInterval(this.boardOfflineCheckTimer);
@@ -211,15 +199,14 @@ export class MqttReceiverClient {
       if (!this.connected) return;
 
       const currentTime = Date.now();
-      // 如果当前时间距离最后接收板子数据的时间大于5秒，判定板子关机/死机
       if (currentTime - this.lastDataReceivedTime > this.BOARD_TIMEOUT_MS) {
         const isCurrentlyOnline = AppStorage.get<boolean>('isBoardConnected');
         if (isCurrentlyOnline === true) {
           this.printLog(LogType.ERROR, `开发板连接断开！已连续 ${this.BOARD_TIMEOUT_MS / 1000} 秒未收到数据！`);
-          AppStorage.setOrCreate('isBoardConnected', false); // 刷 UI 为断开
+          AppStorage.setOrCreate('isBoardConnected', false);
         }
       }
-    }, 2000); // 每2秒轮询扫描一次时间差
+    }, 2000);
   }
 
   public disconnect(): void {
@@ -277,7 +264,6 @@ export class MqttReceiverClient {
       let multiplier = 1;
       let remainingLength = 0;
 
-      // 解析 MQTT 变长剩余长度
       while (pos < bytes.length) {
         const digit = bytes[pos++];
         remainingLength += (digit & 0x7F) * multiplier;
@@ -291,7 +277,6 @@ export class MqttReceiverClient {
         continue;
       }
 
-      // 针对不同的 MQTT 控制报文类型进行日志提取与逻辑解析
       if (packetType === 0x30) {
         this.handlePublish(bytes, pos, packetEnd);
       } else if (packetType === 0x20) {
@@ -302,7 +287,6 @@ export class MqttReceiverClient {
           this.updateConnectionState(true);
           this.startHeartbeat();
 
-          // 【核心新增】连接成功后，先刷新初始化接收时间戳并拉起业务层看门狗
           this.lastDataReceivedTime = Date.now();
           this.startBoardOfflineWatcher();
 
@@ -318,7 +302,7 @@ export class MqttReceiverClient {
         }
       } else if (packetType === 0xD0) {
         this.printLog(LogType.INFO, `成功接收服务器心跳响应 PINGRESP`);
-        this.pingOutstanding = false; // 【核心修复】成功收包，消除超时挂起标记
+        this.pingOutstanding = false;
       } else if (packetType === 0x90) {
         this.printLog(LogType.INFO, `收到服务器订阅确认通知 SUBACK`);
       }
@@ -355,7 +339,6 @@ export class MqttReceiverClient {
 
   private updateConnectionState(state: boolean): void {
     this.connected = state;
-    // 注意：如果是整体MQTT链路断开，板子状态也连带同步清空为false
     if (!state) {
       AppStorage.setOrCreate('isBoardConnected', false);
     }
