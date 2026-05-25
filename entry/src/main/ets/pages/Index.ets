@@ -2,13 +2,13 @@
 import { SensorData, ZoneData } from '../viewmodel/SmartShedBean';
 import { LogType, MqttReceiverClient } from '../service/MqttReceiverClient';
 import { HdsNavigation, HdsTabs, ScrollEffectType } from '@hms.hds.hdsBaseComponent';
-import { curves, LengthMetrics, promptAction, display, router } from '@kit.ArkUI';
-import { BlurStrategy, hdsMaterial, HdsNavigationTitleMode, HdsTabsController, TitleSize } from '@kit.UIDesignKit';
+import { curves, display, LengthMetrics, promptAction } from '@kit.ArkUI';
+import { BlurStrategy, hdsMaterial, HdsNavigationTitleMode, HdsTabsController } from '@kit.UIDesignKit';
 import { ManualPage } from '../view/ManualPage';
 import { AutoPage } from '../view/AutoPage';
 import { vibration } from '../service/vibration';
 import { consolePage } from './console';
-import { LogMessage } from '../viewmodel/ConsoleBean.ts';
+import { LogMessage } from '../viewmodel/ConsoleBean';
 
 AppStorage.setOrCreate('isBoardConnected', false);
 AppStorage.setOrCreate('autoEnabled', false);
@@ -193,7 +193,7 @@ struct Index {
     .navDestination(this.PageMap)
     .width("100%")
     .ignoreLayoutSafeArea([LayoutSafeAreaType.SYSTEM], [LayoutSafeAreaEdge.TOP, LayoutSafeAreaEdge.BOTTOM])
-    .titleMode(HdsNavigationTitleMode.MINI)
+    .titleMode(HdsNavigationTitleMode.FULL)
     .hideBackButton(true)
     .divider({ color: $r('app.color.border')  })
     .titleBar({
@@ -218,7 +218,6 @@ struct Index {
       content: {
         title: {
           mainTitle: "智慧大棚控制终端",
-          mainTitleSize: TitleSize.TITLE_S,
         },
         menu: {
           value: [

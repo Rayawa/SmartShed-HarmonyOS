@@ -1,7 +1,8 @@
 export enum LogType {
-  RECEIVE = 'RECEIVE', // 蓝/绿
-  SEND = 'SEND',       // 橙/黄
-  ERROR = 'ERROR'      // 红
+  RECEIVE = 'RECEIVE',
+  SEND = 'SEND',
+  INFO = 'INFO',
+  ERROR = 'ERROR'
 }
 
 export interface LogMessage {
