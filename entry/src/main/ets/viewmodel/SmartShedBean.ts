@@ -48,19 +48,16 @@ export class ZoneData {
   isExit: boolean = false;
 
   assignFrom(other: ZoneData): ZoneData {
-    // 1. 复制传感器深层数据
     this.bean.temp = other.bean.temp;
     this.bean.hum = other.bean.hum;
     this.bean.intensity = other.bean.intensity;
     this.bean.moisture = other.bean.moisture;
 
-    // 2. 复制控制设备状态
     this.fanValue = other.fanValue;
     this.waterPumpValue = other.waterPumpValue;
     this.ledValue = other.ledValue;
     this.autoEnabled = other.autoEnabled;
 
-    // 3. 复制阈值
     this.autoTempMax = other.autoTempMax;
     this.autoTempMin = other.autoTempMin;
     this.autoHumMax = other.autoHumMax;
@@ -70,7 +67,6 @@ export class ZoneData {
     this.autoIntensityMax = other.autoIntensityMax;
     this.autoIntensityMin = other.autoIntensityMin;
 
-    // 4. 复制线程句柄
     this.autoManagerThread = other.autoManagerThread;
     this.isExit = other.isExit;
 

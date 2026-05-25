@@ -1,15 +1,16 @@
+// src/main/ets/view/AutoPage.ets
 import { ZoneData } from '../viewmodel/SmartShedBean';
-import {
-  MqttReceiverClient, TOPIC_FAN, TOPIC_LED, TOPIC_WATER_PUMP
-} from '../service/MqttReceiverClient';
+import { MqttReceiverClient, TOPIC_FAN, TOPIC_LED, TOPIC_WATER_PUMP } from '../service/MqttReceiverClient';
 import { curves, promptAction } from '@kit.ArkUI';
 import { hdsEffect } from '@kit.UIDesignKit';
+import { LogType } from '../viewmodel/ConsoleBean';
+import { GlobalLogBus } from '../pages/Index';
 
 @Component
 export struct AutoPage {
-  @State ShaderEffectController: hdsEffect.ShaderEffectController = new hdsEffect.ShaderEffectController();
-  @StorageLink("vibrationON") vibrationON: boolean = true;
 
+  @StorageLink("vibrationON") vibrationON: boolean = true;
+  @State ShaderEffectController: hdsEffect.ShaderEffectController = new hdsEffect.ShaderEffectController();
   @StorageLink('isBoardConnected') isBoardConnected: boolean = false;
   @StorageLink('autoEnabled') autoEnabled: boolean = false;
   @StorageLink('temp') temp: number = 28;
@@ -26,36 +27,44 @@ export struct AutoPage {
   @State animStep2: boolean = false;
   @State animStep3: boolean = false;
 
+  private printLog(type: LogType, message: string): void {
+    GlobalLogBus.emit(type, `Auto: ${message}`);
+
+    const now = new Date();
+    const timeStr = `${now.toLocaleTimeString()}.${String(now.getMilliseconds()).padStart(3, '0')}`;
+    const logHeader = `[${timeStr}] [MQTT_${type}]`;
+    if (type === LogType.ERROR) {
+      console.error(`${logHeader} ${message}`);
+    } else {
+      console.info(`${logHeader} ${message}`);
+    }
+  }
+
   aboutToAppear(): void {
     const duration = 500;
     const interval = duration * 0.25;
     const curve = curves.springMotion(0.35, 0.75);
+    this.autoEnabled = true;
+    this.printLog(LogType.INFO, "已切换到智能模式");
 
     setTimeout(() => { animateTo({ duration: duration, curve: curve }, () => { this.animStep1 = true }) }, 100);
     setTimeout(() => { animateTo({ duration: duration, curve: curve }, () => { this.animStep2 = true }) }, interval + 100);
     setTimeout(() => { animateTo({ duration: duration, curve: curve }, () => { this.animStep3 = true }) }, interval * 2 + 100);
   }
 
-
-  /**
-   * 智能闭环控制策略线程
-   */
   private startAutoLogic(): void {
     this.stopAutoLogic();
     this.zone1.isExit = false;
+    this.printLog(LogType.INFO, "智能模式启动");
 
     const handler = setInterval(() => {
-      // 如果触发退出标志，及时销毁定时器
       if (this.zone1.isExit) {
         clearInterval(handler);
         return;
       }
-
-      // 如果当前并未处于智能接管状态，直接跳过计算
       if (!this.autoEnabled) {
         return;
       }
-
       try {
         const tempMax = parseInt(this.zone1.autoTempMax) || 30;
         const humMax = parseInt(this.zone1.autoHumMax) || 80;
@@ -63,7 +72,6 @@ export struct AutoPage {
         const moistureMax = parseInt(this.zone1.autoMoistureMax) || 75;
         const intensityMin = parseInt(this.zone1.autoIntensityMin) || 200;
 
-        // --- 1. 风扇控制阶梯算法 ---
         let targetFan = 0;
         if (this.temp > tempMax + 10 || this.hum > humMax + 20 || this.moisture > moistureMax + 20) {
           targetFan = 3;
@@ -74,11 +82,11 @@ export struct AutoPage {
         }
 
         if (this.fanValue !== targetFan) {
+          this.printLog(LogType.INFO, `[策略变更] 触发降温排湿，风扇状态跳转: ${this.fanValue} -> ${targetFan} 档`);
           this.fanValue = targetFan;
           this.safePublish(TOPIC_FAN, targetFan.toString());
         }
 
-        // --- 2. 水泵控制阶梯算法 ---
         let targetPump = 0;
         if (this.moisture < moistureMin - 20) {
           targetPump = 3;
@@ -89,11 +97,11 @@ export struct AutoPage {
         }
 
         if (this.waterPumpValue !== targetPump) {
+          this.printLog(LogType.INFO, `[策略变更] 土壤过分干燥(当前土湿:${this.moisture}%)，水泵自动开启: ${this.waterPumpValue} -> ${targetPump} 档`);
           this.waterPumpValue = targetPump;
           this.safePublish(TOPIC_WATER_PUMP, targetPump.toString());
         }
 
-        // --- 3. 植物补光灯自适应控制算法 ---
         let targetLed = 0;
         if (this.intensity < intensityMin) {
           let level = Math.floor((2000 - this.ledValue) / 20);
@@ -101,12 +109,14 @@ export struct AutoPage {
         }
 
         if (this.ledValue !== targetLed) {
+          this.printLog(LogType.INFO, `[策略变更] 自然光不足(当前光照:${this.intensity}Lx)，补光灯自动调节至: ${targetLed}%`);
           this.ledValue = targetLed;
           this.safePublish(TOPIC_LED, targetLed.toString());
         }
 
       } catch (err) {
-        console.error(`[AutoLogic] 策略计算异常: ${JSON.stringify(err)}`);
+        const errMsg = err instanceof Error ? err.message : JSON.stringify(err);
+        this.printLog(LogType.ERROR, `智能策略核心算法发生崩溃: ${errMsg}`);
       }
     }, 2000);
 
@@ -116,6 +126,7 @@ export struct AutoPage {
   private stopAutoLogic(): void {
     this.zone1.isExit = true;
     if (this.zone1.autoManagerThread !== null) {
+      this.printLog(LogType.INFO, "已停止并回收智能自动监测线程锁");
       clearInterval(this.zone1.autoManagerThread);
       this.zone1.autoManagerThread = null;
     }
@@ -136,22 +147,22 @@ export struct AutoPage {
     try {
       if (this.mqttClient) {
         this.mqttClient.publish(topic, value);
-        console.info(`[AutoLogic] 自动调控下发成功 -> ${topic} : ${value}`);
+        this.printLog(LogType.INFO, `自动控制指令下发 -> 主题: ${topic}, 下发值: ${value}`);
       } else {
         throw new Error("MQTT未初始化");
       }
     } catch (error) {
-      console.error(`[App] 自动下发失败: ${JSON.stringify(error)}`);
+      const errMsg = error instanceof Error ? error.message : JSON.stringify(error);
+      this.printLog(LogType.ERROR, `自动控制外发失败崩溃: ${errMsg}`);
       promptAction.showToast({ message: '指令自动下发失败，请检查网络', duration: 2000 });
       this.isBoardConnected = false;
     }
   }
 
+
   build() {
     Column({ space: 16 }) {
       Blank().height(80)
-
-      // 状态横幅
       Row() {
         Circle({ width: 8, height: 8 })
           .fill(this.isBoardConnected ? '#41BA41' : '#FF3B30')
@@ -168,12 +179,35 @@ export struct AutoPage {
       .borderRadius(8)
 
       if(this.isBoardConnected){
-        // 实时传感器数据卡片区
         Grid() {
-          GridItem() { this.sensorCard('空气温度', `${this.temp} ℃`, '#FF7D00', 'sys.media.ohos_ic_public_brightness') }
-          GridItem() { this.sensorCard('空气湿度', `${this.hum} %`, '#007DFF', 'sys.media.ohos_ic_public_weather') }
-          GridItem() { this.sensorCard('光照强度', `${this.intensity} Lx`, '#FFBF00', 'sys.media.ohos_ic_public_sun') }
-          GridItem() { this.sensorCard('土壤湿度', `${this.moisture} %`, '#34C759', 'sys.media.ohos_ic_public_add_filled') }
+          GridItem() {
+            Column() {
+              Row() { Circle({ width: 6, height: 6 }).fill('#FF7D00'); Text('空气温度').fontSize(12).fontColor($r("sys.color.font_secondary")).margin({ left: 6 }) }.width('100%')
+              Blank()
+              Text(`${this.temp} ℃`).fontSize(22).fontWeight(FontWeight.Bold).fontColor($r("sys.color.font_primary")).width('100%').textAlign(TextAlign.Start)
+            }.width('100%').height('100%').padding(14).backgroundColor($r("sys.color.ohos_id_color_button_normal")).borderRadius(12).shadow({ radius: 8, color: 'rgba(0,0,0,0.04)', offsetX: 0, offsetY: 2 })
+          }
+          GridItem() {
+            Column() {
+              Row() { Circle({ width: 6, height: 6 }).fill('#007DFF'); Text('空气湿度').fontSize(12).fontColor($r("sys.color.font_secondary")).margin({ left: 6 }) }.width('100%')
+              Blank()
+              Text(`${this.hum} %`).fontSize(22).fontWeight(FontWeight.Bold).fontColor($r("sys.color.font_primary")).width('100%').textAlign(TextAlign.Start)
+            }.width('100%').height('100%').padding(14).backgroundColor($r("sys.color.ohos_id_color_button_normal")).borderRadius(12).shadow({ radius: 8, color: 'rgba(0,0,0,0.04)', offsetX: 0, offsetY: 2 })
+          }
+          GridItem() {
+            Column() {
+              Row() { Circle({ width: 6, height: 6 }).fill('#FFBF00'); Text('光照强度').fontSize(12).fontColor($r("sys.color.font_secondary")).margin({ left: 6 }) }.width('100%')
+              Blank()
+              Text(`${this.intensity} Lx`).fontSize(22).fontWeight(FontWeight.Bold).fontColor($r("sys.color.font_primary")).width('100%').textAlign(TextAlign.Start)
+            }.width('100%').height('100%').padding(14).backgroundColor($r("sys.color.ohos_id_color_button_normal")).borderRadius(12).shadow({ radius: 8, color: 'rgba(0,0,0,0.04)', offsetX: 0, offsetY: 2 })
+          }
+          GridItem() {
+            Column() {
+              Row() { Circle({ width: 6, height: 6 }).fill('#34C759'); Text('土壤湿度').fontSize(12).fontColor($r("sys.color.font_secondary")).margin({ left: 6 }) }.width('100%')
+              Blank()
+              Text(`${this.moisture} %`).fontSize(22).fontWeight(FontWeight.Bold).fontColor($r("sys.color.font_primary")).width('100%').textAlign(TextAlign.Start)
+            }.width('100%').height('100%').padding(14).backgroundColor($r("sys.color.ohos_id_color_button_normal")).borderRadius(12).shadow({ radius: 8, color: 'rgba(0,0,0,0.04)', offsetX: 0, offsetY: 2 })
+          }
         }
         .columnsTemplate('1fr 1fr')
         .rowsTemplate('1fr 1fr')
@@ -184,7 +218,6 @@ export struct AutoPage {
         .opacity(this.animStep2 ? 1 : 0)
         .translate({ y: this.animStep2 ? 0 : 20 })
 
-        // 自动策略控制面板
         Column({ space: 12 }) {
           Text('智能模式设置')
             .fontSize(17)
@@ -195,18 +228,18 @@ export struct AutoPage {
 
           Column({ space: 10 }) {
             Row({ space: 10 }) {
-              this.inputField('温度上限', this.zone1.autoTempMax, (v) => { this.zone1.autoTempMax = v })
-              this.inputField('空湿上限', this.zone1.autoHumMax, (v) => { this.zone1.autoHumMax = v })
+              this.inputField('温度上限', this.zone1.autoTempMax)
+              this.inputField('空湿上限', this.zone1.autoHumMax)
             }.width('100%')
 
             Row({ space: 10 }) {
-              this.inputField('土湿下限', this.zone1.autoMoistureMin, (v) => { this.zone1.autoMoistureMin = v })
-              this.inputField('土湿上限', this.zone1.autoMoistureMax, (v) => { this.zone1.autoMoistureMax = v })
+              this.inputField('土湿下限', this.zone1.autoMoistureMin)
+              this.inputField('土湿上限', this.zone1.autoMoistureMax)
             }.width('100%')
 
             Row({ space: 10 }) {
-              this.inputField('光照下限', this.zone1.autoIntensityMin, (v) => { this.zone1.autoIntensityMin = v })
-              this.inputField('光照上限', this.zone1.autoIntensityMax, (v) => { this.zone1.autoIntensityMax = v })
+              this.inputField('光照下限', this.zone1.autoIntensityMin)
+              this.inputField('光照上限', this.zone1.autoIntensityMax)
             }.width('100%')
           }
           .width('100%')
@@ -255,51 +288,23 @@ export struct AutoPage {
   }
 
   @Builder
-  sensorCard(label: string, value: string, color: string, icon: string) {
-    Column() {
-      Row() {
-        Circle({ width: 6, height: 6 }).fill(color)
-        Text(label)
-          .fontSize(12)
-          .fontColor($r("sys.color.font_secondary"))
-          .margin({ left: 6 })
-      }.width('100%')
-
-      Blank()
-
-      Text(value)
-        .fontSize(22)
-        .fontWeight(FontWeight.Bold)
-        .fontColor($r("sys.color.font_primary"))
-        .width('100%')
-        .textAlign(TextAlign.Start)
-    }
-    .width('100%')
-    .height('100%')
-    .padding(14)
-    .backgroundColor($r("sys.color.ohos_id_color_button_normal"))
-    .borderRadius(12)
-    .shadow({ radius: 8, color: 'rgba(0,0,0,0.04)', offsetX: 0, offsetY: 2 })
-  }
-
-  @Builder
-  inputField(label: string, value: string, onStrChange: (s: string) => void) {
+  inputField(label: string, valueStr: string) {
     Row() {
       Text(label)
         .fontSize(13)
         .width(60)
         .fontColor($r("sys.color.font_secondary"))
         .margin({ right: 5})
-      TextInput({ text: value })
-        .fontSize(10)
-        .height(25)
-        .width(60)
-        .padding({ left: 8, right: 8 })
+      TextInput({ text: valueStr })
+        .fontSize(11)
+        .height(28)
+        .width(65)
+        .padding({ left: 6, right: 6 })
         .backgroundColor($r("app.color.diff_background"))
         .borderRadius(6)
         .type(InputType.Number)
         .onChange((val: string) => {
-          onStrChange(val);
+          this.printLog(LogType.INFO, `用户修改自动阈值 [${label}] 为: ${val}`);
         })
     }
     .layoutWeight(1)

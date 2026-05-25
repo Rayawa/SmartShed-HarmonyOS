@@ -1,4 +1,4 @@
-// index.ets
+// src/main/ets/pages/Index.ets
 import { SensorData, ZoneData } from '../viewmodel/SmartShedBean';
 import { LogType, MqttReceiverClient } from '../service/MqttReceiverClient';
 import { HdsNavigation, HdsTabs, ScrollEffectType } from '@hms.hds.hdsBaseComponent';
@@ -9,6 +9,21 @@ import { AutoPage } from '../view/AutoPage';
 import { vibration } from '../service/vibration';
 import { consolePage } from './console';
 import { LogMessage } from '../viewmodel/ConsoleBean';
+
+// 🚀 新增：定义一个纯粹、轻量化的全局日志分发单例
+export class GlobalLogBus {
+  private static onLogEmit: ((type: LogType, content: string) => void) | null = null;
+
+  public static register(cb: (type: LogType, content: string) => void) {
+    GlobalLogBus.onLogEmit = cb;
+  }
+
+  public static emit(type: LogType, content: string) {
+    if (GlobalLogBus.onLogEmit) {
+      GlobalLogBus.onLogEmit(type, content);
+    }
+  }
+}
 
 AppStorage.setOrCreate('isBoardConnected', false);
 AppStorage.setOrCreate('autoEnabled', false);
@@ -30,15 +45,6 @@ struct Index {
   @State navBarWidth: string | number = '100%';
   @State WVp: number = 3;
 
-  private toggleSplitMode(isSplit: boolean) {
-    animateTo({
-      curve: curves.springMotion(0.4, 0.8),
-      duration: 400
-    }, () => {
-      this.navBarWidth = isSplit ? (this.WVp - 390) : '100%';
-    })
-  }
-
   @StorageLink('isBoardConnected') isBoardConnected: boolean = false;
   @StorageLink('autoEnabled') autoEnabled: boolean = false;
   @StorageLink('temp') temp: number = 28;
@@ -49,6 +55,7 @@ struct Index {
   @StorageLink('waterPumpValue') waterPumpValue: number = 0;
   @StorageLink('ledValue') ledValue: number = 0;
   @StorageLink('zone1') zone1: ZoneData = new ZoneData();
+
   @State animStep1: boolean = false;
   @State animStep2: boolean = false;
   @State animStep3: boolean = false;
@@ -56,22 +63,36 @@ struct Index {
 
   private mqttClient!: MqttReceiverClient;
 
+  private toggleSplitMode(isSplit: boolean) {
+    animateTo({
+      curve: curves.springMotion(0.4, 0.8),
+      duration: 400
+    }, () => {
+      this.navBarWidth = isSplit ? (this.WVp - 390) : '100%';
+    })
+  }
+
   aboutToAppear(): void {
     const displayInfo = display.getDefaultDisplaySync();
     const screenWidthVp = px2vp(displayInfo.width);
     this.WVp = screenWidthVp;
+
+    // 🚀 核心改进：把你的 logList 填充逻辑注册到全局总线上
+    GlobalLogBus.register((type: LogType, content: string) => {
+      const now = new Date();
+      const timeStr = `${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`;
+      this.logList.push({ id: Date.now(), time: timeStr, type, content });
+      if (this.logList.length > 100) this.logList.shift();
+    });
+
     try {
       this.mqttClient = new MqttReceiverClient((topic: string, payload: string) => {
         this.onMqttMessage(topic, payload);
       });
 
-      // 绑定日志回调
+      // 让 MQTT 底层也吐给全局总线
       this.mqttClient.setLogCallback((type: LogType, content: string) => {
-        const now = new Date();
-        const timeStr = `${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`;
-        this.logList.push({ id: Date.now(), time: timeStr, type, content });
-        // 防止日志过多导致内存溢出
-        if (this.logList.length > 100) this.logList.shift();
+        GlobalLogBus.emit(type, content);
       });
 
       this.mqttClient.onStart();
@@ -97,37 +118,45 @@ struct Index {
     if(this.vibrationON) vibration.dotVibration()
     if (this.pageStack.size() > 0) {
       this.pageStack.pop();
-
       if (this.pageStack.size() === 0) {
         this.toggleSplitMode(false);
       }
       return true;
     }
   }
-
   private onMqttMessage(topic: string, payload: string): void {
     console.info(`[App] MQTT收到 -> Topic: ${topic}, Payload: ${payload}`);
-    if (!this.isBoardConnected) {
-      this.isBoardConnected = true;
-    }
+
     try {
       const data: SensorData = JSON.parse(payload);
+
       this.isBoardConnected = true;
+      AppStorage.setOrCreate('isBoardConnected', true);
 
       if (topic === 'Rayawa/light_intensity_1' && data.intensity !== undefined) {
-        this.intensity = data.intensity;
-        this.zone1.bean.intensity = data.intensity;
-      } else if (topic === 'Rayawa/soil_moisture_1' && data.moisture !== undefined) {
-        this.moisture = data.moisture;
-        this.zone1.bean.moisture = data.moisture;
-      } else if (topic === 'Rayawa/temp_and_hum_1') {
+        const val = Number(data.intensity);
+        this.intensity = val;
+        this.zone1.bean.intensity = val;
+        AppStorage.setOrCreate('intensity', val);
+      }
+      else if (topic === 'Rayawa/soil_moisture_1' && data.moisture !== undefined) {
+        const val = Number(data.moisture);
+        this.moisture = val;
+        this.zone1.bean.moisture = val;
+        AppStorage.setOrCreate('moisture', val);
+      }
+      else if (topic === 'Rayawa/temp_and_hum_1') {
         if (data.temp !== undefined) {
-          this.temp = data.temp;
-          this.zone1.bean.temp = data.temp;
+          const tVal = Number(data.temp);
+          this.temp = tVal;
+          this.zone1.bean.temp = tVal;
+          AppStorage.setOrCreate('temp', tVal);
         }
         if (data.hum !== undefined) {
-          this.hum = data.hum;
-          this.zone1.bean.hum = data.hum;
+          const hVal = Number(data.hum);
+          this.hum = hVal;
+          this.zone1.bean.hum = hVal;
+          AppStorage.setOrCreate('hum', hVal);
         }
       }
     } catch (e) {
@@ -156,7 +185,7 @@ struct Index {
     HdsNavigation(this.pageStack) {
       HdsTabs({ controller: this.TabBarController }) {
         TabContent() {
-          ManualPage({ mqttClient: this.mqttClient, })
+          ManualPage({ mqttClient: this.mqttClient })
         }
         .tabBar(new BottomTabBarStyle($r('sys.media.wifi_router_fill'), "自定义模式"))
 
@@ -174,10 +203,6 @@ struct Index {
       .barPosition(BarPosition.End)
       .vertical(false)
       .scrollable(false)
-      .blurStrategy(BlurStrategy.ENABLE)
-      .barOverlap(true)
-      .barPosition(BarPosition.End)
-      .vertical(false)
       .barFloatingStyle({
         barBottomMargin: 30,
         lightColor: $r('app.color.light_color'),
@@ -216,15 +241,13 @@ struct Index {
         },
       },
       content: {
-        title: {
-          mainTitle: "智慧大棚控制终端",
-        },
+        title: { mainTitle: "智慧大棚控制终端" },
         menu: {
           value: [
             {
               content: {
                 label: "console",
-                icon: $r("sys.symbol.gearshape"),
+                icon: $r("sys.symbol.code_square"),
                 isEnabled: true,
                 action: () => {
                   if(this.vibrationON) vibration.dotVibration()
