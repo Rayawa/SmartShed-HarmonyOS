@@ -2,7 +2,7 @@
 import { SensorData, ZoneData } from '../viewmodel/SmartShedBean';
 import { LogType, MqttReceiverClient } from '../service/MqttReceiverClient';
 import { HdsNavigation, HdsTabs, ScrollEffectType } from '@hms.hds.hdsBaseComponent';
-import { curves, LengthMetrics, promptAction, display } from '@kit.ArkUI';
+import { curves, LengthMetrics, promptAction, display, router } from '@kit.ArkUI';
 import { BlurStrategy, hdsMaterial, HdsNavigationTitleMode, HdsTabsController, TitleSize } from '@kit.UIDesignKit';
 import { ManualPage } from '../view/ManualPage';
 import { AutoPage } from '../view/AutoPage';
@@ -93,6 +93,18 @@ struct Index {
     }
   }
 
+  onBackPress(): boolean | void {
+    if(this.vibrationON) vibration.dotVibration()
+    if (this.pageStack.size() > 0) {
+      this.pageStack.pop();
+
+      if (this.pageStack.size() === 0) {
+        this.toggleSplitMode(false);
+      }
+      return true;
+    }
+  }
+
   private onMqttMessage(topic: string, payload: string): void {
     console.info(`[App] MQTT收到 -> Topic: ${topic}, Payload: ${payload}`);
     if (!this.isBoardConnected) {
@@ -141,12 +153,10 @@ struct Index {
   }
 
   build() {
-    HdsNavigation() {
+    HdsNavigation(this.pageStack) {
       HdsTabs({ controller: this.TabBarController }) {
         TabContent() {
-          ManualPage({
-            mqttClient: this.mqttClient,
-          })
+          ManualPage({ mqttClient: this.mqttClient, })
         }
         .tabBar(new BottomTabBarStyle($r('sys.media.wifi_router_fill'), "自定义模式"))
 
@@ -155,6 +165,14 @@ struct Index {
         }
         .tabBar(new BottomTabBarStyle($r('sys.media.wifi_router_fill'), "智能模式"))
       }
+      .onChange(() => {
+        if(this.vibrationON) vibration.dotVibration()
+      })
+      .animation({ curve: curves.springMotion(0.8, 0.8), duration: 400 })
+      .blurStrategy(BlurStrategy.ENABLE)
+      .barOverlap(true)
+      .barPosition(BarPosition.End)
+      .vertical(false)
       .scrollable(false)
       .blurStrategy(BlurStrategy.ENABLE)
       .barOverlap(true)
@@ -170,14 +188,14 @@ struct Index {
         }
       })
     }
-    .ignoreLayoutSafeArea()
-    .titleMode(HdsNavigationTitleMode.MINI)
     .mode(NavigationMode.Auto)
     .navBarWidth(this.navBarWidth)
     .navDestination(this.PageMap)
+    .width("100%")
+    .ignoreLayoutSafeArea([LayoutSafeAreaType.SYSTEM], [LayoutSafeAreaEdge.TOP, LayoutSafeAreaEdge.BOTTOM])
+    .titleMode(HdsNavigationTitleMode.MINI)
+    .hideBackButton(true)
     .divider({ color: $r('app.color.border')  })
-    .height("100%")
-    .titleMode(HdsNavigationTitleMode.MODAL)
     .titleBar({
       style: {
         scrollEffectOpts: {
@@ -213,7 +231,7 @@ struct Index {
                   if(this.vibrationON) vibration.dotVibration()
                   let index = this.pageStack.getIndexByName("ConsolePage");
                   if (index.length > 0) {
-                    this.pageStack.moveToTop("UserPage");
+                    this.pageStack.moveToTop("ConsolePage");
                   } else {
                     this.pageStack.pushPathByName("ConsolePage", null);
                     this.toggleSplitMode(true);
@@ -221,7 +239,6 @@ struct Index {
                 },
               },
             },
-
           ],
         },
       },

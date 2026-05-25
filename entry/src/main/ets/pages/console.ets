@@ -8,7 +8,7 @@ export struct consolePage {
   onCloseSplit?: () => void;
   @StorageLink("vibrationON") vibrationON: boolean = true;
   @Consume('pageStack') pageStack: NavPathStack;
-  @Link logList: LogMessage[];
+  @State logList: LogMessage[] = [];
   private scroller: Scroller = new Scroller();
 
   // 添加日志的方法
@@ -36,32 +36,46 @@ export struct consolePage {
 
   onPageShow() {
     this.scroller.scrollEdge(Edge.Bottom);
+    console.info("进入console页面")
   }
 
   build() {
     HdsNavDestination() {
       Column() {
-        List({ scroller: this.scroller }) { // 绑定 scroller
+        Blank().height(100)
+        List({ scroller: this.scroller }) {
           ForEach(this.logList, (item: LogMessage) => {
             ListItem() {
               Row({ space: 5 }) {
                 Text(`[${item.time}]`).fontSize(10).fontColor(Color.Gray)
-                Text(item.type === LogType.SEND ? "OUT" : "IN")
+                Text(item.type === LogType.SEND ? "RECEIVE" : "SENT")
                   .fontColor(this.getTypeColor(item.type))
                   .fontWeight(FontWeight.Bold)
-                Text(item.content).fontColor(Color.White).fontSize(12).textOverflow({ overflow: TextOverflow.Ellipsis })
+                Text(item.content).fontColor($r("app.color.diff_content")).fontSize(12).textOverflow({ overflow: TextOverflow.Ellipsis })
               }
             }
+            .borderRadius(16)
           })
         }
-        .width('100%')
-        .layoutWeight(1)
+        .width('90%')
         .padding(10)
-        .backgroundColor('#1A000000')
-        .borderRadius(8)
+        .margin({bottom: 20})
+        .layoutWeight(1)
+        .borderWidth(0.5)
+        .borderColor($r("app.color.border"))
+        .backgroundColor($r("app.color.background"))
+        .borderRadius(16)
+        .shadow({
+          radius: 8,
+          color: "#1a000000",
+          offsetX: 0,
+          offsetY: 2,
+        })
       }
-      .padding(10)
+      .backgroundColor($r("app.color.background"))
+
     }
+    .backgroundColor($r("app.color.background"))
     .onBackPressed(() => {
       if(this.vibrationON) vibration.dotVibration()
       if (this.onCloseSplit) {
@@ -147,6 +161,7 @@ export struct consolePage {
             if(this.vibrationON) vibration.dotVibration()
             if (this.onCloseSplit) {
               this.onCloseSplit();
+              console.info("堆叠关闭")
             }
             this.pageStack.pop();
           },
