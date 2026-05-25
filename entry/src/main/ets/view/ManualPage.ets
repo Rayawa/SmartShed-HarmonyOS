@@ -1,12 +1,34 @@
 // src/main/ets/view/ManualPage.ets
 import { ZoneData } from '../viewmodel/SmartShedBean';
 import { LogType, MqttReceiverClient, TOPIC_FAN, TOPIC_LED, TOPIC_WATER_PUMP } from '../service/MqttReceiverClient';
-import { curves, promptAction } from '@kit.ArkUI';
+import { curves, display, LengthMetrics, promptAction } from '@kit.ArkUI';
 import { GlobalLogBus } from '../pages/Index';
+import { hdsEffect } from '@kit.UIDesignKit';
 
 @Component
 export struct ManualPage {
+  @State lightIntensity: number = 10;
+  @State illuminatedType: hdsEffect.PointLightIlluminatedType = hdsEffect.PointLightIlluminatedType.NONE;
+  @State button_gradient_state: hdsEffect.PressShadowType = hdsEffect.PressShadowType.NONE;
+  @State isPressed: boolean = false;
+  @State isPressedA: boolean = false;
+  @State isPressedB: boolean = false;
+  @State isPressedC: boolean = false;
+  @State isPressedD: boolean = false;
+  @State isPressed1: boolean = false;
+  @State isPressed2: boolean = false;
+  @State isPressed3: boolean = false;
+  @State lightSourceType: hdsEffect.PointLightSourceType = hdsEffect.PointLightSourceType.NONE;
+  @State lightSourceTypeA: hdsEffect.PointLightSourceType = hdsEffect.PointLightSourceType.NONE;
+  @State lightSourceTypeB: hdsEffect.PointLightSourceType = hdsEffect.PointLightSourceType.NONE;
+  @State lightSourceTypeC: hdsEffect.PointLightSourceType = hdsEffect.PointLightSourceType.NONE;
+  @State lightSourceTypeD: hdsEffect.PointLightSourceType = hdsEffect.PointLightSourceType.NONE;
+  @State lightSourceType1: hdsEffect.PointLightSourceType = hdsEffect.PointLightSourceType.NONE;
+  @State lightSourceType2: hdsEffect.PointLightSourceType = hdsEffect.PointLightSourceType.NONE;
+  @State lightSourceType3: hdsEffect.PointLightSourceType = hdsEffect.PointLightSourceType.NONE;
+
   @StorageLink("vibrationON") vibrationON: boolean = true;
+  @StorageLink("isWideScreen") isWideScreen: boolean = true;
 
   @StorageLink('isBoardConnected') isBoardConnected: boolean = false;
   @StorageLink('autoEnabled') autoEnabled: boolean = false;
@@ -61,6 +83,7 @@ export struct ManualPage {
   }
 
   aboutToAppear(): void {
+    this.isWideScreen = px2vp(display.getDefaultDisplaySync().width)>600? true: false;
     this.autoEnabled = false;
     this.printLog(LogType.INFO, "已切换到自定义模式");
     if (this.isVisible) {
@@ -114,6 +137,9 @@ export struct ManualPage {
           .fontSize(14)
           .fontColor(this.isBoardConnected ? '#1E661E' : '#A52A2A')
       }
+      .visualEffect(new hdsEffect.HdsEffectBuilder().pointLight({
+        illuminatedType: this.illuminatedType,
+      }).buildEffect())
       .opacity(this.animStep1 ? 1 : 0)
       .translate({ y: this.animStep1 ? 0 : 20 })
       .width('100%')
@@ -122,128 +148,393 @@ export struct ManualPage {
       .borderRadius(8)
 
       if(this.isBoardConnected){
-        Grid() {
-          GridItem() {
-            Column() {
-              Row() { Circle({ width: 6, height: 6 }).fill('#FF7D00'); Text('空气温度').fontSize(12).fontColor($r("sys.color.font_secondary")).margin({ left: 6 }) }.width('100%')
-              Blank()
-              Text(`${this.temp} ℃`).fontSize(22).fontWeight(FontWeight.Bold).fontColor($r("sys.color.font_primary")).width('100%').textAlign(TextAlign.Start)
-            }.width('100%').height('100%').padding(14).backgroundColor($r("sys.color.ohos_id_color_button_normal")).borderRadius(12).shadow({ radius: 8, color: 'rgba(0,0,0,0.04)', offsetX: 0, offsetY: 2 })
-          }
-          GridItem() {
-            Column() {
-              Row() { Circle({ width: 6, height: 6 }).fill('#007DFF'); Text('空气湿度').fontSize(12).fontColor($r("sys.color.font_secondary")).margin({ left: 6 }) }.width('100%')
-              Blank()
-              Text(`${this.hum} %`).fontSize(22).fontWeight(FontWeight.Bold).fontColor($r("sys.color.font_primary")).width('100%').textAlign(TextAlign.Start)
-            }.width('100%').height('100%').padding(14).backgroundColor($r("sys.color.ohos_id_color_button_normal")).borderRadius(12).shadow({ radius: 8, color: 'rgba(0,0,0,0.04)', offsetX: 0, offsetY: 2 })
-          }
-          GridItem() {
-            Column() {
-              Row() { Circle({ width: 6, height: 6 }).fill('#FFBF00'); Text('光照强度').fontSize(12).fontColor($r("sys.color.font_secondary")).margin({ left: 6 }) }.width('100%')
-              Blank()
-              Text(`${this.intensity} Lx`).fontSize(22).fontWeight(FontWeight.Bold).fontColor($r("sys.color.font_primary")).width('100%').textAlign(TextAlign.Start)
-            }.width('100%').height('100%').padding(14).backgroundColor($r("sys.color.ohos_id_color_button_normal")).borderRadius(12).shadow({ radius: 8, color: 'rgba(0,0,0,0.04)', offsetX: 0, offsetY: 2 })
-          }
-          GridItem() {
-            Column() {
-              Row() { Circle({ width: 6, height: 6 }).fill('#34C759'); Text('土壤湿度').fontSize(12).fontColor($r("sys.color.font_secondary")).margin({ left: 6 }) }.width('100%')
-              Blank()
-              Text(`${this.moisture} %`).fontSize(22).fontWeight(FontWeight.Bold).fontColor($r("sys.color.font_primary")).width('100%').textAlign(TextAlign.Start)
-            }.width('100%').height('100%').padding(14).backgroundColor($r("sys.color.ohos_id_color_button_normal")).borderRadius(12).shadow({ radius: 8, color: 'rgba(0,0,0,0.04)', offsetX: 0, offsetY: 2 })
-          }
-        }
-        .columnsTemplate('1fr 1fr')
-        .rowsTemplate('1fr 1fr')
-        .columnsGap(12)
-        .rowsGap(12)
-        .width('100%')
-        .height(160)
-        .opacity(this.animStep2 ? 1 : 0)
-        .translate({ y: this.animStep2 ? 0 : 20 })
+        Flex({
+          direction: this.isWideScreen ? FlexDirection.Row : FlexDirection.Column,
+          space: { main: LengthMetrics.vp(16), cross: LengthMetrics.vp(16) }
+        }) {
+          Column({ space: 12 }){
+            Row({ space: 12 }) {
+              Column() {
+                Row() {
+                  Circle({ width: 6, height: 6 }).fill('#FF7D00')
+                  Text('空气温度').fontSize(12).fontColor($r("sys.color.font_secondary")).margin({ left: 6 })
+                }.width('100%')
+                Blank()
+                Text(`${this.temp} ℃`).fontSize(22).fontWeight(FontWeight.Bold).fontColor($r("sys.color.font_primary")).width('100%').textAlign(TextAlign.Start)
+              }
+              .visualEffect(new hdsEffect.HdsEffectBuilder()
+                .pressShadow(this.button_gradient_state)
+                .pointLight({
+                  sourceType: this.lightSourceTypeA,
+                  illuminatedType: hdsEffect.PointLightIlluminatedType.BORDER_CONTENT,
+                  options: {
+                    color: Color.White,
+                    intensity: this.lightIntensity,
+                    height: 150
+                  }
+                })
+                .pressShadow(this.button_gradient_state)
+                .buildEffect())
+              .scale({ x: this.isPressedA ? 0.97 : 1, y: this.isPressedA ? 0.97 : 1 })
+              .animation({ curve: Curve.EaseOut, duration: 150 })
+              .onTouch((event: TouchEvent) => {
+                if (event.type === TouchType.Down) {
+                  this.lightSourceTypeA = hdsEffect.PointLightSourceType.BRIGHT;
+                  this.isPressedA = true;
+                } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+                  this.lightSourceTypeA = hdsEffect.PointLightSourceType.NONE;
+                  this.isPressedA = false;
+                }
+              })
+              .borderWidth(1).borderColor($r("app.color.border"))
+              .layoutWeight(1)
+              .height('100%')
+              .padding(14)
+              .backgroundColor($r("app.color.background"))
+              .borderRadius(12)
+              .shadow({
+                radius: 8,
+                color: "#1a000000",
+                offsetX: 0,
+                offsetY: 2,
+              })
 
-        Column({ space: 14 }) {
-          Text('手动控制')
-            .fontSize(17)
-            .fontWeight(FontWeight.Bold)
+              Column() {
+                Row() {
+                  Circle({ width: 6, height: 6 }).fill('#007DFF')
+                  Text('空气湿度').fontSize(12).fontColor($r("sys.color.font_secondary")).margin({ left: 6 })
+                }.width('100%')
+                Blank()
+                Text(`${this.hum} %`).fontSize(22).fontWeight(FontWeight.Bold).fontColor($r("sys.color.font_primary")).width('100%').textAlign(TextAlign.Start)
+              }
+              .visualEffect(new hdsEffect.HdsEffectBuilder()
+                .pressShadow(this.button_gradient_state)
+                .pointLight({
+                  sourceType: this.lightSourceTypeB,
+                  illuminatedType: hdsEffect.PointLightIlluminatedType.BORDER_CONTENT,
+                  options: {
+                    color: Color.White,
+                    intensity: this.lightIntensity,
+                    height: 150
+                  }
+                })
+                .pressShadow(this.button_gradient_state)
+                .buildEffect())
+              .scale({ x: this.isPressedB ? 0.97 : 1, y: this.isPressedB ? 0.97 : 1 })
+              .animation({ curve: Curve.EaseOut, duration: 150 })
+              .onTouch((event: TouchEvent) => {
+                if (event.type === TouchType.Down) {
+                  this.lightSourceTypeB = hdsEffect.PointLightSourceType.BRIGHT;
+                  this.isPressedB = true;
+                } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+                  this.lightSourceTypeB = hdsEffect.PointLightSourceType.NONE;
+                  this.isPressedB = false;
+                }
+              })
+              .borderWidth(1).borderColor($r("app.color.border"))
+              .layoutWeight(1)
+              .height('100%')
+              .padding(14)
+              .backgroundColor($r("app.color.background"))
+              .borderRadius(12)
+              .shadow({
+                radius: 8,
+                color: "#1a000000",
+                offsetX: 0,
+                offsetY: 2,
+              })
+            }
+            .layoutWeight(1)
             .width('100%')
-            .fontColor($r("sys.color.font_primary"))
-            .margin({ bottom: 4 })
 
-          Column() {
-            Row() {
-              Text('风扇主轴转速').fontSize(13).fontColor($r("sys.color.font_primary"))
-              Blank()
-              Text(this.fanValue === 0 ? '关闭' : `${this.fanValue} 档`)
-                .fontSize(13).fontWeight(FontWeight.Medium).fontColor($r("sys.color.font_secondary"))
-            }.width('100%')
-            Row(){
-              Image($r('app.media.wind1')).height(20).width(20)
-              Slider({ value: this.fanValue, min: 0, max: 3, step: 1, style: SliderStyle.InSet })
-                .height(28).layoutWeight(1)
-                .onChange((val: number, mode: SliderChangeMode) => {
-                  let targetVal = Math.floor(val);
-                  this.fanValue = targetVal;
-                  if (mode === SliderChangeMode.End || mode === SliderChangeMode.Click) {
-                    this.printLog(LogType.INFO, `通过滑块调节风扇档位 -> 设定为: ${targetVal} 档`);
-                    this.safePublish(TOPIC_FAN, targetVal.toString());
+            Row({ space: 12 }) {
+              Column() {
+                Row() {
+                  Circle({ width: 6, height: 6 }).fill('#FFBF00')
+                  Text('光照强度').fontSize(12).fontColor($r("sys.color.font_secondary")).margin({ left: 6 })
+                }.width('100%')
+                Blank()
+                Text(`${this.intensity} Lx`).fontSize(22).fontWeight(FontWeight.Bold).fontColor($r("sys.color.font_primary")).width('100%').textAlign(TextAlign.Start)
+              }
+              .visualEffect(new hdsEffect.HdsEffectBuilder()
+                .pressShadow(this.button_gradient_state)
+                .pointLight({
+                  sourceType: this.lightSourceTypeC,
+                  illuminatedType: hdsEffect.PointLightIlluminatedType.BORDER_CONTENT,
+                  options: {
+                    color: Color.White,
+                    intensity: this.lightIntensity,
+                    height: 150
                   }
                 })
-              Image($r('app.media.wind2')).height(20).width(20)
-            }.alignItems(VerticalAlign.Center)
-          }.width("100%").margin({ bottom: 4 })
+                .pressShadow(this.button_gradient_state)
+                .buildEffect())
+              .scale({ x: this.isPressedC ? 0.97 : 1, y: this.isPressedC ? 0.97 : 1 })
+              .animation({ curve: Curve.EaseOut, duration: 150 })
+              .onTouch((event: TouchEvent) => {
+                if (event.type === TouchType.Down) {
+                  this.lightSourceTypeC = hdsEffect.PointLightSourceType.BRIGHT;
+                  this.isPressedC = true;
+                } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+                  this.lightSourceTypeC = hdsEffect.PointLightSourceType.NONE;
+                  this.isPressedC = false;
+                }
+              })
+              .borderWidth(1).borderColor($r("app.color.border"))
+              .layoutWeight(1)
+              .height('100%')
+              .padding(14)
+              .backgroundColor($r("app.color.background"))
+              .borderRadius(12)
+              .shadow({
+                radius: 8,
+                color: "#1a000000",
+                offsetX: 0,
+                offsetY: 2,
+              })
 
-          Column() {
-            Row() {
-              Text('微型潜水泵').fontSize(13).fontColor($r("sys.color.font_primary"))
-              Blank()
-              Text(this.waterPumpValue === 0 ? '关闭' : `${this.waterPumpValue} 档`)
-                .fontSize(13).fontWeight(FontWeight.Medium).fontColor($r("sys.color.font_secondary"))
-            }.width('100%')
-            Row(){
-              Image($r('app.media.water1')).height(20).width(20)
-              Slider({ value: this.waterPumpValue, min: 0, max: 3, step: 1, style: SliderStyle.InSet })
-                .height(28).layoutWeight(1)
-                .onChange((val: number, mode: SliderChangeMode) => {
-                  let targetVal = Math.floor(val);
-                  this.waterPumpValue = targetVal;
-                  if (mode === SliderChangeMode.End || mode === SliderChangeMode.Click) {
-                    this.printLog(LogType.INFO, `通过滑块调节潜水泵档位 -> 设定为: ${targetVal} 档`);
-                    this.safePublish(TOPIC_WATER_PUMP, targetVal.toString());
+              Column() {
+                Row() {
+                  Circle({ width: 6, height: 6 }).fill('#34C759')
+                  Text('土壤湿度').fontSize(12).fontColor($r("sys.color.font_secondary")).margin({ left: 6 })
+                }.width('100%')
+                Blank()
+                Text(`${this.moisture} %`).fontSize(22).fontWeight(FontWeight.Bold).fontColor($r("sys.color.font_primary")).width('100%').textAlign(TextAlign.Start)
+              }
+              .visualEffect(new hdsEffect.HdsEffectBuilder()
+                .pressShadow(this.button_gradient_state)
+                .pointLight({
+                  sourceType: this.lightSourceTypeD,
+                  illuminatedType: hdsEffect.PointLightIlluminatedType.BORDER_CONTENT,
+                  options: {
+                    color: Color.White,
+                    intensity: this.lightIntensity,
+                    height: 150
                   }
                 })
-              Image($r('app.media.water2')).height(20).width(20)
-            }.alignItems(VerticalAlign.Center)
-          }.width("100%").margin({ bottom: 4 })
+                .pressShadow(this.button_gradient_state)
+                .buildEffect())
+              .scale({ x: this.isPressedD ? 0.97 : 1, y: this.isPressedD ? 0.97 : 1 })
+              .animation({ curve: Curve.EaseOut, duration: 150 })
+              .onTouch((event: TouchEvent) => {
+                if (event.type === TouchType.Down) {
+                  this.lightSourceTypeD = hdsEffect.PointLightSourceType.BRIGHT;
+                  this.isPressedD = true;
+                } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+                  this.lightSourceTypeD = hdsEffect.PointLightSourceType.NONE;
+                  this.isPressedD = false;
+                }
+              })
+              .borderWidth(1).borderColor($r("app.color.border"))
+              .layoutWeight(1)
+              .height('100%')
+              .padding(14)
+              .backgroundColor($r("app.color.background"))
+              .borderRadius(12)
+              .shadow({
+                radius: 8,
+                color: "#1a000000",
+                offsetX: 0,
+                offsetY: 2,
+              })
+            }
+            .layoutWeight(1)
+            .width('100%')
+          }
+          .width(this.isWideScreen ? 'calc(50% - 8vp)' : '100%')
+          .height(160)
+          .opacity(this.animStep2 ? 1 : 0)
+          .translate({ y: this.animStep2 ? 0 : 20 })
 
-          Column() {
-            Row() {
-              Text('全光谱植物补光灯').fontSize(13).fontColor($r("sys.color.font_primary"))
-              Blank()
-              Text(this.ledValue === 0 ? '关闭' : `${this.ledValue} %`)
-                .fontSize(13).fontWeight(FontWeight.Medium).fontColor($r("sys.color.font_secondary"))
-            }.width('100%')
-            Row(){
-              Image($r('app.media.light1')).height(20).width(20)
-              Slider({ value: this.ledValue, min: 0, max: 100, step: 1, style: SliderStyle.InSet })
-                .height(28).layoutWeight(1)
-                .onChange((val: number, mode: SliderChangeMode) => {
-                  let targetVal = Math.floor(val);
-                  this.ledValue = targetVal;
-                  if (mode === SliderChangeMode.End || mode === SliderChangeMode.Click) {
-                    this.printLog(LogType.INFO, `通过滑块调节植物灯亮度 -> 设定为: ${targetVal} %`);
-                    this.safePublish(TOPIC_LED, targetVal.toString());
-                  }
-                })
-              Image($r('app.media.light2')).height(20).width(20)
-            }.alignItems(VerticalAlign.Center)
-          }.width("100%").margin({ bottom: 4 })
+          Column({ space: 10 }) {
+
+            Text('手动控制')
+              .padding(5)
+              .fontSize(17)
+              .fontWeight(FontWeight.Bold)
+              .width('100%')
+              .fontColor($r("app.color.diff_content"))
+
+            Column() {
+              Row() {
+                Text('风扇主轴转速').fontSize(13).fontColor($r("sys.color.font_primary"))
+                Blank()
+                Text(this.fanValue === 0 ? '关闭' : `${this.fanValue} 档`)
+                  .fontSize(13).fontWeight(FontWeight.Medium).fontColor($r("sys.color.font_secondary"))
+              }.width('100%')
+              Row(){
+                Image($r('app.media.wind1')).height(20).width(20)
+                Slider({ value: this.fanValue, min: 0, max: 3, step: 1, style: SliderStyle.InSet })
+                  .height(28).layoutWeight(1)
+                  .onChange((val: number, mode: SliderChangeMode) => {
+                    let targetVal = Math.floor(val);
+                    this.fanValue = targetVal;
+                    if (mode === SliderChangeMode.End || mode === SliderChangeMode.Click) {
+                      this.printLog(LogType.INFO, `通过滑块调节风扇档位 -> 设定为: ${targetVal} 档`);
+                      this.safePublish(TOPIC_FAN, targetVal.toString());
+                    }
+                  })
+                Image($r('app.media.wind2')).height(20).width(20)
+              }.alignItems(VerticalAlign.Center)
+            }.borderRadius(16).borderWidth(1).borderColor($r("app.color.border")).padding(10).width("100%")
+            .visualEffect(new hdsEffect.HdsEffectBuilder()
+              .pressShadow(this.button_gradient_state)
+              .pointLight({
+                sourceType: this.lightSourceType1,
+                illuminatedType: hdsEffect.PointLightIlluminatedType.BORDER,
+                options: {
+                  color: Color.White,
+                  intensity: this.lightIntensity,
+                  height: 150
+                }
+              })
+              .pressShadow(this.button_gradient_state)
+              .buildEffect())
+            .scale({ x: this.isPressed1 ? 0.97 : 1, y: this.isPressed1 ? 0.97 : 1 })
+            .animation({ curve: Curve.EaseOut, duration: 150 })
+            .onTouch((event: TouchEvent) => {
+              if (event.type === TouchType.Down) {
+                this.lightSourceType1 = hdsEffect.PointLightSourceType.SOFT;
+                this.isPressed1 = true;
+              } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+                this.lightSourceType1 = hdsEffect.PointLightSourceType.NONE;
+                this.isPressed1 = false;
+              }
+            })
+
+            Column() {
+              Row() {
+                Text('微型潜水泵').fontSize(13).fontColor($r("sys.color.font_primary"))
+                Blank()
+                Text(this.waterPumpValue === 0 ? '关闭' : `${this.waterPumpValue} 档`)
+                  .fontSize(13).fontWeight(FontWeight.Medium).fontColor($r("sys.color.font_secondary"))
+              }.width('100%')
+              Row(){
+                Image($r('app.media.water1')).height(20).width(20)
+                Slider({ value: this.waterPumpValue, min: 0, max: 3, step: 1, style: SliderStyle.InSet })
+                  .height(28).layoutWeight(1)
+                  .onChange((val: number, mode: SliderChangeMode) => {
+                    let targetVal = Math.floor(val);
+                    this.waterPumpValue = targetVal;
+                    if (mode === SliderChangeMode.End || mode === SliderChangeMode.Click) {
+                      this.printLog(LogType.INFO, `通过滑块调节潜水泵档位 -> 设定为: ${targetVal} 档`);
+                      this.safePublish(TOPIC_WATER_PUMP, targetVal.toString());
+                    }
+                  })
+                Image($r('app.media.water2')).height(20).width(20)
+              }.alignItems(VerticalAlign.Center)
+            }.borderRadius(16).borderWidth(1).borderColor($r("app.color.border")).padding(10).width("100%")
+            .visualEffect(new hdsEffect.HdsEffectBuilder()
+              .pressShadow(this.button_gradient_state)
+              .pointLight({
+                sourceType: this.lightSourceType2,
+                illuminatedType: hdsEffect.PointLightIlluminatedType.BORDER,
+                options: {
+                  color: Color.White,
+                  intensity: this.lightIntensity,
+                  height: 150
+                }
+              })
+              .pressShadow(this.button_gradient_state)
+              .buildEffect())
+            .scale({ x: this.isPressed2 ? 0.97 : 1, y: this.isPressed2 ? 0.97 : 1 })
+            .animation({ curve: Curve.EaseOut, duration: 150 })
+            .onTouch((event: TouchEvent) => {
+              if (event.type === TouchType.Down) {
+                this.lightSourceType2 = hdsEffect.PointLightSourceType.SOFT;
+                this.isPressed2 = true;
+              } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+                this.lightSourceType2 = hdsEffect.PointLightSourceType.NONE;
+                this.isPressed2 = false;
+              }
+            })
+
+            Column() {
+              Row() {
+                Text('全光谱植物补光灯').fontSize(13).fontColor($r("sys.color.font_primary"))
+                Blank()
+                Text(this.ledValue === 0 ? '关闭' : `${this.ledValue} %`)
+                  .fontSize(13).fontWeight(FontWeight.Medium).fontColor($r("sys.color.font_secondary"))
+              }.width('100%')
+              Row(){
+                Image($r('app.media.light1')).height(20).width(20)
+                Slider({ value: this.ledValue, min: 0, max: 100, step: 1, style: SliderStyle.InSet })
+                  .height(28).layoutWeight(1)
+                  .onChange((val: number, mode: SliderChangeMode) => {
+                    let targetVal = Math.floor(val);
+                    this.ledValue = targetVal;
+                    if (mode === SliderChangeMode.End || mode === SliderChangeMode.Click) {
+                      this.printLog(LogType.INFO, `通过滑块调节植物灯亮度 -> 设定为: ${targetVal} %`);
+                      this.safePublish(TOPIC_LED, targetVal.toString());
+                    }
+                  })
+                Image($r('app.media.light2')).height(20).width(20)
+              }.alignItems(VerticalAlign.Center)
+            }.borderRadius(16).borderWidth(1).borderColor($r("app.color.border")).padding(10).width("100%")
+            .visualEffect(new hdsEffect.HdsEffectBuilder()
+              .pressShadow(this.button_gradient_state)
+              .pointLight({
+                sourceType: this.lightSourceType3,
+                illuminatedType: hdsEffect.PointLightIlluminatedType.BORDER,
+                options: {
+                  color: Color.White,
+                  intensity: this.lightIntensity,
+                  height: 150
+                }
+              })
+              .pressShadow(this.button_gradient_state)
+              .buildEffect())
+            .scale({ x: this.isPressed3 ? 0.97 : 1, y: this.isPressed3 ? 0.97 : 1 })
+            .animation({ curve: Curve.EaseOut, duration: 150 })
+            .onTouch((event: TouchEvent) => {
+              if (event.type === TouchType.Down) {
+                this.lightSourceType3 = hdsEffect.PointLightSourceType.SOFT;
+                this.isPressed3 = true;
+              } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+                this.lightSourceType3 = hdsEffect.PointLightSourceType.NONE;
+                this.isPressed3 = false;
+              }
+            })
+
+          }
+          .shadow({
+            radius: 8,
+            color: "#1a000000",
+            offsetX: 0,
+            offsetY: 2,
+          })
+          .padding(10)
+          .borderWidth(1).borderColor($r("app.color.border"))
+          .visualEffect(new hdsEffect.HdsEffectBuilder()
+            .pressShadow(this.button_gradient_state)
+            .pointLight({
+              sourceType: this.lightSourceType,
+              illuminatedType: hdsEffect.PointLightIlluminatedType.BORDER,
+              options: {
+                color: Color.White,
+                intensity: this.lightIntensity,
+                height: 150
+              }
+            })
+            .pressShadow(this.button_gradient_state)
+            .buildEffect())
+          .animation({ curve: Curve.EaseOut, duration: 150 })
+          .onTouch((event: TouchEvent) => {
+            if (event.type === TouchType.Down) {
+              this.lightSourceType = hdsEffect.PointLightSourceType.BRIGHT;
+              this.isPressed = true;
+            } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+              this.lightSourceType = hdsEffect.PointLightSourceType.NONE;
+              this.isPressed = false;
+            }
+          })
+          .width(this.isWideScreen ? 'calc(50% - 8vp)' : '100%')
+          .backgroundColor($r("app.color.background"))
+          .borderRadius(16)
+          .opacity(this.animStep3 ? 1 : 0)
+          .translate({ y: this.animStep3 ? 0 : 20 })
         }
-        .width('100%')
-        .padding(16)
-        .backgroundColor($r("app.color.background"))
-        .borderRadius(16)
-        .opacity(this.animStep3 ? 1 : 0)
-        .translate({ y: this.animStep3 ? 0 : 20 })
+
 
       } else {
         Column({ space: 12 }) {
@@ -256,6 +547,19 @@ export struct ManualPage {
         .justifyContent(FlexAlign.Center)
       }
     }
+    .onAreaChange((oldValue: Area, newValue: Area) => {
+      let currentWidth = newValue.width as number;
+      let newWideState = currentWidth >= 600;
+
+      if (this.isWideScreen !== newWideState) {
+        animateTo({
+          duration: 400,
+          curve: Curve.FastOutSlowIn
+        }, () => {
+          this.isWideScreen = newWideState;
+        });
+      }
+    })
     .onVisibleAreaChange([0.0], (isVisible: boolean, currentRatio: number) => {
       this.handleManualPageVisibility(isVisible && currentRatio > 0);
     })
@@ -264,4 +568,5 @@ export struct ManualPage {
     .height("100%")
     .padding({ left: 16, right: 16, top: 75, bottom: 32 })
   }
+
 }

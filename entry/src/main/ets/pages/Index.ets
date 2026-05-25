@@ -43,7 +43,7 @@ struct Index {
   @Provide('pageStack') pageStack: NavPathStack = new NavPathStack();
   @StorageLink("vibrationON") vibrationON: boolean = true;
   @State navBarWidth: string | number = '100%';
-  @State WVp: number = 3;
+  @StorageLink("isWideScreen") isWideScreen: boolean = true;
 
   @StorageLink('isBoardConnected') isBoardConnected: boolean = false;
   @StorageLink('autoEnabled') autoEnabled: boolean = false;
@@ -68,15 +68,11 @@ struct Index {
       curve: curves.springMotion(0.4, 0.8),
       duration: 400
     }, () => {
-      this.navBarWidth = isSplit ? (this.WVp - 390) : '100%';
+      this.navBarWidth = isSplit ? '40%' : '100%';
     })
   }
 
   aboutToAppear(): void {
-    const displayInfo = display.getDefaultDisplaySync();
-    const screenWidthVp = px2vp(displayInfo.width);
-    this.WVp = screenWidthVp;
-
     GlobalLogBus.register((type: LogType, content: string) => {
       const now = new Date();
       const timeStr = `${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`;
@@ -168,6 +164,7 @@ struct Index {
       consolePage({
         logList: this.logList,
         onCloseSplit: () => {
+          this.isWideScreen = px2vp(display.getDefaultDisplaySync().width)>600? true: false;
           animateTo({
             curve: curves.springMotion(0.4, 0.8),
             duration: 350
@@ -193,9 +190,9 @@ struct Index {
         }
         .tabBar(new BottomTabBarStyle($r('sys.media.wifi_router_fill'), "智能模式"))
       }
-      .onChange((index: number) => { // 🚀 修改：捕获 index
+      .onChange((index: number) => {
         if(this.vibrationON) vibration.dotVibration();
-        this.currentTabIndex = index; // 更新当前活跃的 Tab
+        this.currentTabIndex = index;
       })
       .animation({ curve: curves.springMotion(0.8, 0.8), duration: 400 })
       .blurStrategy(BlurStrategy.ENABLE)
@@ -205,8 +202,8 @@ struct Index {
       .scrollable(false)
       .barFloatingStyle({
         barBottomMargin: 30,
-        lightColor: $r('app.color.light_color'),
-        gradientMask: { maskColor: $r('app.color.light_color'), maskHeight: 92 },
+        lightColor: Color.Transparent,
+        gradientMask: { maskColor: Color.Transparent, maskHeight: 92 },
         systemMaterialEffect:{
           materialType: hdsMaterial.MaterialType.IMMERSIVE,
           materialLevel: hdsMaterial.MaterialLevel.EXQUISITE
