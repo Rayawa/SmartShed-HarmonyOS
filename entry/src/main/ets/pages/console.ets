@@ -95,7 +95,7 @@ export struct consolePage {
           }
         })
         .width('90%')
-        .padding(10)
+        .padding({ left: 10, right: 10, bottom: 10 })
         .margin({ bottom: 20 })
         .layoutWeight(1)
         .borderWidth(0.5)
@@ -109,9 +109,9 @@ export struct consolePage {
           offsetY: 2,
         })
       }
-      .backgroundColor($r("app.color.background"))
+      .backgroundColor($r("app.color.backcolor"))
     }
-    .backgroundColor($r("app.color.background"))
+    .backgroundColor($r("app.color.backcolor"))
     .onBackPressed(() => {
       if (this.vibrationON) vibration.dotVibration();
       if (this.onCloseSplit) {
