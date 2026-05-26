@@ -25,19 +25,21 @@ export struct ManualPage {
   @StorageLink("lightColor") lightColor: ResourceColor = Color.White;
   @StorageLink("lightIntensity") lightIntensity: number = 10;
   @State button_gradient_state: hdsEffect.PressShadowType = hdsEffect.PressShadowType.NONE;
-  @State isPressed: boolean = false;
+  @State isPressedConnect: boolean = false;
   @State isPressedA: boolean = false;
   @State isPressedB: boolean = false;
   @State isPressedC: boolean = false;
   @State isPressedD: boolean = false;
+  @State isPressedControl: boolean = false;
   @State isPressed1: boolean = false;
   @State isPressed2: boolean = false;
   @State isPressed3: boolean = false;
-  @State lightSourceType: hdsEffect.PointLightSourceType = hdsEffect.PointLightSourceType.NONE;
+  @State lightSourceTypeConnect: hdsEffect.PointLightSourceType = hdsEffect.PointLightSourceType.NONE;
   @State lightSourceTypeA: hdsEffect.PointLightSourceType = hdsEffect.PointLightSourceType.NONE;
   @State lightSourceTypeB: hdsEffect.PointLightSourceType = hdsEffect.PointLightSourceType.NONE;
   @State lightSourceTypeC: hdsEffect.PointLightSourceType = hdsEffect.PointLightSourceType.NONE;
   @State lightSourceTypeD: hdsEffect.PointLightSourceType = hdsEffect.PointLightSourceType.NONE;
+  @State lightSourceTypeControl: hdsEffect.PointLightSourceType = hdsEffect.PointLightSourceType.NONE;
   @State lightSourceType1: hdsEffect.PointLightSourceType = hdsEffect.PointLightSourceType.NONE;
   @State lightSourceType2: hdsEffect.PointLightSourceType = hdsEffect.PointLightSourceType.NONE;
   @State lightSourceType3: hdsEffect.PointLightSourceType = hdsEffect.PointLightSourceType.NONE;
@@ -150,9 +152,30 @@ export struct ManualPage {
         offsetX: 0,
         offsetY: 2,
       })
-      .visualEffect(new hdsEffect.HdsEffectBuilder().pointLight({
-        illuminatedType: hdsEffect.PointLightIlluminatedType.BORDER_CONTENT,
-      }).buildEffect())
+      .visualEffect(new hdsEffect.HdsEffectBuilder()
+        .pressShadow(this.button_gradient_state)
+        .pointLight({
+          sourceType: this.lightSourceTypeConnect,
+          illuminatedType: hdsEffect.PointLightIlluminatedType.BORDER_CONTENT,
+          options: {
+            color: this.lightColor,
+            intensity: this.lightIntensity,
+            height: 150
+          }
+        })
+        .pressShadow(this.button_gradient_state)
+        .buildEffect())
+      .scale({ x: this.isPressedConnect ? 0.97 : 1, y: this.isPressedConnect ? 0.97 : 1 })
+      .animation({ curve: Curve.EaseOut, duration: 150 })
+      .onTouch((event: TouchEvent) => {
+        if (event.type === TouchType.Down) {
+          this.lightSourceTypeConnect = hdsEffect.PointLightSourceType.BRIGHT;
+          this.isPressedConnect = true;
+        } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+          this.lightSourceTypeConnect = hdsEffect.PointLightSourceType.NONE;
+          this.isPressedConnect = false;
+        }
+      })
       .opacity(this.animStep1 ? 1 : 0)
       .translate({ y: this.animStep1 ? 0 : 20 })
       .width('100%')
@@ -520,7 +543,7 @@ export struct ManualPage {
           .visualEffect(new hdsEffect.HdsEffectBuilder()
             .pressShadow(this.button_gradient_state)
             .pointLight({
-              sourceType: this.lightSourceType,
+              sourceType: this.lightSourceTypeControl,
               illuminatedType: hdsEffect.PointLightIlluminatedType.BORDER,
               options: {
                 color: this.lightColor,
@@ -533,11 +556,11 @@ export struct ManualPage {
           .animation({ curve: Curve.EaseOut, duration: 150 })
           .onTouch((event: TouchEvent) => {
             if (event.type === TouchType.Down) {
-              this.lightSourceType = hdsEffect.PointLightSourceType.BRIGHT;
-              this.isPressed = true;
+              this.lightSourceTypeControl = hdsEffect.PointLightSourceType.BRIGHT;
+              this.isPressedControl = true;
             } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
-              this.lightSourceType = hdsEffect.PointLightSourceType.NONE;
-              this.isPressed = false;
+              this.lightSourceTypeControl = hdsEffect.PointLightSourceType.NONE;
+              this.isPressedControl = false;
             }
           })
           .width(this.isWideScreen ? 'calc(50% - 8vp)' : '100%')
@@ -550,8 +573,8 @@ export struct ManualPage {
         }
       } else {
         Column({ space: 12 }) {
-          LoadingProgress().width(80).height(80).color(Color.Black)
-          Text('等待建立通信...').fontSize(18).fontColor(Color.Black).fontWeight(FontWeight.Bold).margin({ top: 20 })
+          LoadingProgress().width(80).height(80).color($r("sys.color.font_primary"))
+          Text('等待建立通信...').fontSize(18).fontColor($r("sys.color.font_primary")).fontWeight(FontWeight.Bold).margin({ top: 20 })
         }
         .opacity(this.animStep1 ? 1 : 0)
         .translate({ y: this.animStep1 ? 0 : 20 })
