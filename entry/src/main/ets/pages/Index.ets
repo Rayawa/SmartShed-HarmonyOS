@@ -1,13 +1,12 @@
 // src/main/ets/pages/Index.ets
 import { SensorData, ZoneData } from '../viewmodel/SmartShedBean';
 import { LogType, MqttReceiverClient } from '../service/MqttReceiverClient';
-import { HdsNavigation, HdsTabs, ScrollEffectType } from '@hms.hds.hdsBaseComponent';
-import { LengthMetrics, promptAction } from '@kit.ArkUI';
-import { BlurStrategy, hdsMaterial, HdsNavigationTitleMode, HdsTabsController } from '@kit.UIDesignKit';
+import { HdsTabs } from '@hms.hds.hdsBaseComponent';
+import { promptAction } from '@kit.ArkUI';
+import { BlurStrategy, hdsMaterial, HdsTabsController } from '@kit.UIDesignKit';
 import { ManualPage } from '../view/ManualPage';
 import { AutoPage } from '../view/AutoPage';
 import { vibration } from '../service/vibration';
-import { consolePage } from './console';
 import { LogMessage } from '../viewmodel/ConsoleBean';
 
 export class GlobalLogBus {
@@ -42,7 +41,6 @@ AppStorage.setOrCreate('zone1', new ZoneData());
 @Component
 struct Index {
   private TabBarController: HdsTabsController = new HdsTabsController();
-  @Provide('pageStack') pageStack: NavPathStack = new NavPathStack();
   @StorageLink("vibrationON") vibrationON: boolean = true;
 
   @StorageLink('isBoardConnected') isBoardConnected: boolean = false;
@@ -101,13 +99,7 @@ struct Index {
     }
   }
 
-  onBackPress(): boolean | void {
-    if(this.vibrationON) vibration.dotVibration()
-    if (this.pageStack.size() > 0) {
-      this.pageStack.pop();
-      return true;
-    }
-  }
+
   private onMqttMessage(topic: string, payload: string): void {
     console.info(`[App] MQTT收到 -> Topic: ${topic}, Payload: ${payload}`);
 
@@ -143,29 +135,23 @@ struct Index {
     }
   }
 
-  @Builder
-  PageMap(name: string) {
-    if (name === "ConsolePage") {
-      consolePage({
-        logList: this.logList,
-      })
-    }
-  }
   @State currentTabIndex: number = 0;
 
   build() {
-    HdsNavigation(this.pageStack) {
+    Column(){
       HdsTabs({ controller: this.TabBarController }) {
         TabContent() {
           ManualPage({ mqttClient: this.mqttClient, isVisible: this.currentTabIndex === 0 })
         }
-        .tabBar(new BottomTabBarStyle($r('sys.media.wifi_router_fill'), "自定义模式"))
+        .tabBar(new BottomTabBarStyle($r('sys.media.ohos_user_auth_icon_fingerprint'), "自定义模式"))
 
         TabContent() {
           AutoPage({ mqttClient: this.mqttClient, isVisible: this.currentTabIndex === 1 })
         }
         .tabBar(new BottomTabBarStyle($r('sys.media.wifi_router_fill'), "智能模式"))
       }
+      .height("100%").width("100%")
+      .ignoreLayoutSafeArea()
       .onChange((index: number) => {
         if(this.vibrationON) vibration.dotVibration();
         this.currentTabIndex = index;
@@ -184,50 +170,7 @@ struct Index {
           materialLevel: hdsMaterial.MaterialLevel.EXQUISITE
         }
       })
-    }
-    .mode(NavigationMode.Stack)
-    .navDestination(this.PageMap)
-    .width("100%")
-    .ignoreLayoutSafeArea([LayoutSafeAreaType.SYSTEM], [LayoutSafeAreaEdge.TOP, LayoutSafeAreaEdge.BOTTOM])
-    .titleMode(HdsNavigationTitleMode.FULL)
-    .hideBackButton(true)
-    .titleBar({
-      style: {
-        scrollEffectOpts: {
-          enableScrollEffect: true,
-          scrollEffectType: ScrollEffectType.GRADIENT_BLUR,
-          blurEffectiveStartOffset: LengthMetrics.vp(0),
-          blurEffectiveEndOffset: LengthMetrics.vp(20),
-        },
-        systemMaterialEffect:{
-          materialType: hdsMaterial.MaterialType.IMMERSIVE,
-          materialLevel: hdsMaterial.MaterialLevel.EXQUISITE
-        },
-        originalStyle: {
-          backgroundStyle: { backgroundColor: $r("sys.color.ohos_id_color_background") },
-          contentStyle: {
-            titleStyle: { mainTitleColor: $r("sys.color.font_primary") },
-          },
-        },
-      },
-      content: {
-        title: { mainTitle: "智慧大棚控制终端" },
-        menu: {
-          value: [
-            {
-              content: {
-                label: "console",
-                icon: $r("sys.symbol.code_square"),
-                isEnabled: true,
-                action: () => {
-                  if(this.vibrationON) vibration.dotVibration()
-                  this.pageStack.pushPathByName("ConsolePage", null);
-                },
-              },
-            },
-          ],
-        },
-      },
-    });
+    }.width("100%").height("100%")
+    .expandSafeArea([SafeAreaType.SYSTEM, SafeAreaType.CUTOUT], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
   }
 }
