@@ -5,6 +5,7 @@ import { curves, display, LengthMetrics, promptAction } from '@kit.ArkUI';
 import { hdsEffect } from '@kit.UIDesignKit';
 import { LogType } from '../viewmodel/ConsoleBean';
 import { GlobalLogBus } from '../pages/Index';
+import { HdsButton } from '../viewmodel/HdsButton'; // 🌟 引入 HdsButton 进行无缝替换
 
 
 @Component
@@ -27,28 +28,7 @@ export struct AutoPage {
   @StorageLink("transparentColor")transparentColor: ResourceColor = $r("sys.color.ohos_toggle_bg_transparent")
   @StorageLink("transparentDiffColor")transparentDiffColor: ResourceColor = $r("sys.color.ohos_id_color_mask_thin_transparent")
   @StorageLink("transparentBorderColor")transparentBorderColor: ResourceColor = $r("sys.color.toast_border_color")
-  @StorageLink("lightColor") lightColor: ResourceColor = Color.White;
-  @StorageLink("lightIntensity") lightIntensity: number = 10;
-  @StorageLink("illuminatedType") illuminatedType: hdsEffect.PointLightIlluminatedType = hdsEffect.PointLightIlluminatedType.NONE;
-  @State button_gradient_state: hdsEffect.PressShadowType = hdsEffect.PressShadowType.NONE;
-  @State isPressedConnect: boolean = false;
-  @State isPressedA: boolean = false;
-  @State isPressedB: boolean = false;
-  @State isPressedC: boolean = false;
-  @State isPressedD: boolean = false;
-  @State isPressedControl: boolean = false;
-  @State isPressed1: boolean = false;
-  @State isPressed2: boolean = false;
-  @State isPressed3: boolean = false;
-  @State lightSourceTypeConnect: hdsEffect.PointLightSourceType = hdsEffect.PointLightSourceType.NONE;
-  @State lightSourceTypeA: hdsEffect.PointLightSourceType = hdsEffect.PointLightSourceType.NONE;
-  @State lightSourceTypeB: hdsEffect.PointLightSourceType = hdsEffect.PointLightSourceType.NONE;
-  @State lightSourceTypeC: hdsEffect.PointLightSourceType = hdsEffect.PointLightSourceType.NONE;
-  @State lightSourceTypeD: hdsEffect.PointLightSourceType = hdsEffect.PointLightSourceType.NONE;
-  @State lightSourceTypeControl: hdsEffect.PointLightSourceType = hdsEffect.PointLightSourceType.NONE;
-  @State lightSourceType1: hdsEffect.PointLightSourceType = hdsEffect.PointLightSourceType.NONE;
-  @State lightSourceType2: hdsEffect.PointLightSourceType = hdsEffect.PointLightSourceType.NONE;
-  @State lightSourceType3: hdsEffect.PointLightSourceType = hdsEffect.PointLightSourceType.NONE;
+
   @State controller: hdsEffect.ShaderEffectController = new hdsEffect.ShaderEffectController();
   @State animStep1: number = 0;
   @State animStep2: number = 0;
@@ -228,280 +208,143 @@ export struct AutoPage {
 
       Column({ space: 16 }) {
         Blank().height(80)
-        Row() {
-          Circle({ width: 8, height: 8 })
-            .fill(this.isBoardConnected ? "#ff287328" : "#FF3B30")
-            .margin({ right: 6 })
-          Text(this.isBoardConnected ? '已连接至Rayawa/Hi3861' : '与开发板连接已断开，请检查网络')
-            .fontSize(14)
-            .fontColor(this.isBoardConnected ? "#ff287328" : "#FF3B30")
-        }
-        .shadow({
-          radius: 8,
-          color: "#1a000000",
-          offsetX: 0,
-          offsetY: 2,
-        })
-        .visualEffect(new hdsEffect.HdsEffectBuilder()
-          .pressShadow(this.button_gradient_state)
-          .pointLight({
-            sourceType: this.lightSourceTypeConnect,
-            illuminatedType: hdsEffect.PointLightIlluminatedType.BORDER_CONTENT,
-            options: {
-              color: this.lightColor,
-              intensity: this.lightIntensity,
-              height: 150
+
+        // ==================== 1. 连接状态栏 ====================
+        Stack() {
+          HdsButton({
+            barWidth: 336,
+            barHeight: 56,
+            enableClickScale: true,
+            enablePointLight: true,
+            enableDrag: true,
+            onButtonClick: () => {
+              this.printLog(LogType.INFO, "点击了连接状态栏");
             }
-          })
-          .pressShadow(this.button_gradient_state)
-          .buildEffect())
-        .scale({ x: this.isPressedConnect ? 0.97 : 1, y: this.isPressedConnect ? 0.97 : 1 })
-        .animation({ curve: Curve.EaseOut, duration: 150 })
-        .onTouch((event: TouchEvent) => {
-          if (event.type === TouchType.Down) {
-            this.lightSourceTypeConnect = hdsEffect.PointLightSourceType.BRIGHT;
-            this.isPressedConnect = true;
-          } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
-            this.lightSourceTypeConnect = hdsEffect.PointLightSourceType.NONE;
-            this.isPressedConnect = false;
+          }) {
+            Row() {
+              Circle({ width: 8, height: 8 })
+                .fill(this.isBoardConnected ? $r("app.color.green_dark") : $r("app.color.red_dark"))
+                .margin({ right: 10 })
+              Text(this.isBoardConnected ? '已连接至 Rayawa/Hi3861 核心板' : '与开发板连接已断开，请检查网络')
+                .fontSize(14)
+                .fontWeight(FontWeight.Medium)
+                .fontColor(this.isBoardConnected ? $r("app.color.green_dark") : $r("app.color.red_dark"))
+            }
+            .padding({ left: 16, right: 16 })
+            .width('100%')
+            .height('100%')
+            .justifyContent(FlexAlign.Center)
           }
-        })
+        }
+        .width('100%')
         .opacity(this.animStep1 ? 1 : 0)
         .translate({ y: this.animStep1 ? 0 : 20 })
-        .width('100%')
-        .padding({ left: 16, right: 16, top: 10, bottom: 10 })
-        .backgroundColor(this.transparentColor)
-        .borderRadius(16)
-        .borderWidth(0.5)
-        .borderColor(this.isBoardConnected ? "#ff287328" : "#FF3B30")
 
+        // 🌟 完全保留原有的取反断开逻辑
         if(this.isBoardConnected){
           Flex({
             direction: this.isWideScreen ? FlexDirection.Row : FlexDirection.Column,
             space: { main: LengthMetrics.vp(16), cross: LengthMetrics.vp(16) }
           }) {
+            // ==================== 2. 环境监测数据区域（4个独立材质卡片） ====================
             Column({ space: 12 }) {
+              // 第一排：空气温度 & 空气湿度
               Row({ space: 12 }) {
-                Column() {
-                  Row() {
-                    Circle({ width: 6, height: 6 }).fill('#FF7D00')
-                    Text('空气温度').fontSize(12).fontColor("#444444").margin({ left: 6 })
-                  }.width('100%')
-
-                  Blank()
-                  Text(`${this.temp} ℃`)
-                    .fontSize(22)
-                    .fontWeight(FontWeight.Bold)
-                    .fontColor("#444444")
-                    .width('100%')
-                    .textAlign(TextAlign.Start)
-                }
-                .visualEffect(new hdsEffect.HdsEffectBuilder()
-                  .pressShadow(this.button_gradient_state)
-                  .pointLight({
-                    sourceType: this.lightSourceTypeA,
-                    illuminatedType: hdsEffect.PointLightIlluminatedType.BORDER_CONTENT,
-                    options: {
-                      color: this.lightColor,
-                      intensity: this.lightIntensity,
-                      height: 150
+                // 空气温度
+                Stack() {
+                  HdsButton({
+                    barWidth: 164,
+                    barHeight: 80,
+                    enableClickScale: true,
+                    enablePointLight: true,
+                    enableDrag: true
+                  }) {
+                    Column() {
+                      Row() {
+                        Circle({ width: 6, height: 6 }).fill('#FF7D00').margin({ right: 6 })
+                        Text('空气温度').fontSize(12).fontColor($r("sys.color.font_secondary"))
+                      }.width('100%')
+                      Blank()
+                      Text(`${this.temp} ℃`).fontSize(24).fontWeight(FontWeight.Bold).fontColor($r("sys.color.font_primary")).width('100%')
                     }
-                  })
-                  .pressShadow(this.button_gradient_state)
-                  .buildEffect())
-                .scale({ x: this.isPressedA ? 0.97 : 1, y: this.isPressedA ? 0.97 : 1 })
-                .animation({ curve: Curve.EaseOut, duration: 150 })
-                .onTouch((event: TouchEvent) => {
-                  if (event.type === TouchType.Down) {
-                    this.lightSourceTypeA = hdsEffect.PointLightSourceType.BRIGHT;
-                    this.isPressedA = true;
-                  } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
-                    this.lightSourceTypeA = hdsEffect.PointLightSourceType.NONE;
-                    this.isPressedA = false;
+                    .padding({ left: 25, top: 10, bottom: 8 }).width('100%').height('100%')
                   }
-                })
-                .borderWidth(1)
-                .borderColor(this.autoEnabled ? this.transparentBorderColor : $r("app.color.border"))
-                .layoutWeight(1)
-                .height('100%')
-                .padding(14)
-                .backgroundColor(this.autoEnabled ? this.transparentColor : $r("app.color.background"))
-                .borderRadius(12)
-                .shadow({
-                  radius: 8,
-                  color: "#1a000000",
-                  offsetX: 0,
-                  offsetY: 2,
-                })
+                }.layoutWeight(1)
 
-                Column() {
-                  Row() {
-                    Circle({ width: 6, height: 6 }).fill('#007DFF')
-                    Text('空气湿度').fontSize(12).fontColor("#444444").margin({ left: 6 })
-                  }.width('100%')
-
-                  Blank()
-                  Text(`${this.hum} %`)
-                    .fontSize(22)
-                    .fontWeight(FontWeight.Bold)
-                    .fontColor("#444444")
-                    .width('100%')
-                    .textAlign(TextAlign.Start)
-                }
-                .visualEffect(new hdsEffect.HdsEffectBuilder()
-                  .pressShadow(this.button_gradient_state)
-                  .pointLight({
-                    sourceType: this.lightSourceTypeB,
-                    illuminatedType: hdsEffect.PointLightIlluminatedType.BORDER_CONTENT,
-                    options: {
-                      color: this.lightColor,
-                      intensity: this.lightIntensity,
-                      height: 150
+                // 空气湿度
+                Stack() {
+                  HdsButton({
+                    barWidth: 164,
+                    barHeight: 80,
+                    enableClickScale: true,
+                    enablePointLight: true,
+                    enableDrag: true
+                  }) {
+                    Column() {
+                      Row() {
+                        Circle({ width: 6, height: 6 }).fill('#007DFF').margin({ right: 6 })
+                        Text('空气湿度').fontSize(12).fontColor($r("sys.color.font_secondary"))
+                      }.width('100%')
+                      Blank()
+                      Text(`${this.hum} %`).fontSize(24).fontWeight(FontWeight.Bold).fontColor($r("sys.color.font_primary")).width('100%')
                     }
-                  })
-                  .pressShadow(this.button_gradient_state)
-                  .buildEffect())
-                .scale({ x: this.isPressedB ? 0.97 : 1, y: this.isPressedB ? 0.97 : 1 })
-                .animation({ curve: Curve.EaseOut, duration: 150 })
-                .onTouch((event: TouchEvent) => {
-                  if (event.type === TouchType.Down) {
-                    this.lightSourceTypeB = hdsEffect.PointLightSourceType.BRIGHT;
-                    this.isPressedB = true;
-                  } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
-                    this.lightSourceTypeB = hdsEffect.PointLightSourceType.NONE;
-                    this.isPressedB = false;
+                    .padding({ left: 25, top: 10, bottom: 8 }).width('100%').height('100%')
                   }
-                })
-                .borderWidth(1)
-                .borderColor(this.autoEnabled ? this.transparentBorderColor : $r("app.color.border"))
-                .layoutWeight(1)
-                .height('100%')
-                .padding(14)
-                .backgroundColor(this.autoEnabled ? this.transparentColor : $r("app.color.background"))
-                .borderRadius(12)
-                .shadow({
-                  radius: 8,
-                  color: "#1a000000",
-                  offsetX: 0,
-                  offsetY: 2,
-                })
+                }.layoutWeight(1)
               }
-              .layoutWeight(1)
               .width('100%')
 
+              // 第二排：光照强度 & 土壤湿度
               Row({ space: 12 }) {
-                Column() {
-                  Row() {
-                    Circle({ width: 6, height: 6 }).fill('#FFBF00')
-                    Text('光照强度').fontSize(12).fontColor("#444444").margin({ left: 6 })
-                  }.width('100%')
-
-                  Blank()
-                  Text(`${this.intensity} Lx`)
-                    .fontSize(22)
-                    .fontWeight(FontWeight.Bold)
-                    .fontColor("#444444")
-                    .width('100%')
-                    .textAlign(TextAlign.Start)
-                }
-                .visualEffect(new hdsEffect.HdsEffectBuilder()
-                  .pressShadow(this.button_gradient_state)
-                  .pointLight({
-                    sourceType: this.lightSourceTypeC,
-                    illuminatedType: hdsEffect.PointLightIlluminatedType.BORDER_CONTENT,
-                    options: {
-                      color: this.lightColor,
-                      intensity: this.lightIntensity,
-                      height: 150
+                // 光照强度
+                Stack() {
+                  HdsButton({
+                    barWidth: 164,
+                    barHeight: 80,
+                    enableClickScale: true,
+                    enablePointLight: true,
+                    enableDrag: true
+                  }) {
+                    Column() {
+                      Row() {
+                        Circle({ width: 6, height: 6 }).fill('#FFBF00').margin({ right: 6 })
+                        Text('光照强度').fontSize(12).fontColor($r("sys.color.font_secondary"))
+                      }.width('100%')
+                      Blank()
+                      Text(`${this.intensity} Lx`).fontSize(22).fontWeight(FontWeight.Bold).fontColor($r("sys.color.font_primary")).width('100%')
                     }
-                  })
-                  .pressShadow(this.button_gradient_state)
-                  .buildEffect())
-                .scale({ x: this.isPressedC ? 0.97 : 1, y: this.isPressedC ? 0.97 : 1 })
-                .animation({ curve: Curve.EaseOut, duration: 150 })
-                .onTouch((event: TouchEvent) => {
-                  if (event.type === TouchType.Down) {
-                    this.lightSourceTypeC = hdsEffect.PointLightSourceType.BRIGHT;
-                    this.isPressedC = true;
-                  } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
-                    this.lightSourceTypeC = hdsEffect.PointLightSourceType.NONE;
-                    this.isPressedC = false;
+                    .padding({ left: 25, top: 10, bottom: 8 }).width('100%').height('100%')
                   }
-                })
-                .borderWidth(1)
-                .borderColor(this.autoEnabled ? this.transparentBorderColor : $r("app.color.border"))
-                .layoutWeight(1)
-                .height('100%')
-                .padding(14)
-                .backgroundColor(this.autoEnabled ? this.transparentColor : $r("app.color.background"))
-                .borderRadius(12)
-                .shadow({
-                  radius: 8,
-                  color: "#1a000000",
-                  offsetX: 0,
-                  offsetY: 2,
-                })
+                }.layoutWeight(1)
 
-                Column() {
-                  Row() {
-                    Circle({ width: 6, height: 6 }).fill('#34C759')
-                    Text('土壤湿度').fontSize(12).fontColor("#444444").margin({ left: 6 })
-                  }.width('100%')
-
-                  Blank()
-                  Text(`${this.moisture} %`)
-                    .fontSize(22)
-                    .fontWeight(FontWeight.Bold)
-                    .fontColor("#444444")
-                    .width('100%')
-                    .textAlign(TextAlign.Start)
-                }
-                .visualEffect(new hdsEffect.HdsEffectBuilder()
-                  .pressShadow(this.button_gradient_state)
-                  .pointLight({
-                    sourceType: this.lightSourceTypeD,
-                    illuminatedType: hdsEffect.PointLightIlluminatedType.BORDER_CONTENT,
-                    options: {
-                      color: this.lightColor,
-                      intensity: this.lightIntensity,
-                      height: 150
+                // 土壤湿度
+                Stack() {
+                  HdsButton({
+                    barWidth: 164,
+                    barHeight: 80,
+                    enableClickScale: true,
+                    enablePointLight: true,
+                    enableDrag: true
+                  }) {
+                    Column() {
+                      Row() {
+                        Circle({ width: 6, height: 6 }).fill('#34C759').margin({ right: 6 })
+                        Text('土壤湿度').fontSize(12).fontColor($r("sys.color.font_secondary"))
+                      }.width('100%')
+                      Blank()
+                      Text(`${this.moisture} %`).fontSize(24).fontWeight(FontWeight.Bold).fontColor($r("sys.color.font_primary")).width('100%')
                     }
-                  })
-                  .pressShadow(this.button_gradient_state)
-                  .buildEffect())
-                .scale({ x: this.isPressedD ? 0.97 : 1, y: this.isPressedD ? 0.97 : 1 })
-                .animation({ curve: Curve.EaseOut, duration: 150 })
-                .onTouch((event: TouchEvent) => {
-                  if (event.type === TouchType.Down) {
-                    this.lightSourceTypeD = hdsEffect.PointLightSourceType.BRIGHT;
-                    this.isPressedD = true;
-                  } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
-                    this.lightSourceTypeD = hdsEffect.PointLightSourceType.NONE;
-                    this.isPressedD = false;
+                    .padding({ left: 25, top: 10, bottom: 8 }).width('100%').height('100%')
                   }
-                })
-                .borderWidth(1)
-                .borderColor(this.autoEnabled ? this.transparentBorderColor : $r("app.color.border"))
-                .layoutWeight(1)
-                .height('100%')
-                .padding(14)
-                .backgroundColor(this.autoEnabled ? this.transparentColor : $r("app.color.background"))
-                .borderRadius(12)
-                .shadow({
-                  radius: 8,
-                  color: "#1a000000",
-                  offsetX: 0,
-                  offsetY: 2,
-                })
+                }.layoutWeight(1)
               }
-              .layoutWeight(1)
               .width('100%')
             }
             .width(this.isWideScreen ? 'calc(50% - 8vp)' : '100%')
-            .height(160)
             .opacity(this.animStep2 ? 1 : 0)
             .translate({ y: this.animStep2 ? 0 : 20 })
 
+            // ==================== 2. 智能模式设置面板替换 ====================
             Column({ space: 12 }) {
               Text('智能模式设置')
                 .fontSize(17)
@@ -510,59 +353,36 @@ export struct AutoPage {
                 .fontColor("#444444")
                 .margin({ bottom: 4 })
 
-              Column({ space: 10 }) {
-                Row({ space: 10 }) {
-                  this.inputField('温度上限', () => this.zone1.autoTempMax, (v) => { this.zone1.autoTempMax = v })
-                  this.inputField('空湿上限', () => this.zone1.autoHumMax, (v) => { this.zone1.autoHumMax = v })
-                }.width('100%')
+              Stack() {
+                HdsButton({
+                  barWidth: 336,
+                  barHeight: 140, // 严丝合缝包裹内部三组 Row 阈值设定组件
+                  enablePointLight: true,
+                  enableClickScale: false // 输入框承载卡片，保持静止不进行整包缩放
+                }) {
+                  Column({ space: 10 }) {
+                    Row({ space: 10 }) {
+                      this.inputField('温度上限', () => this.zone1.autoTempMax, (v) => { this.zone1.autoTempMax = v })
+                      this.inputField('空湿上限', () => this.zone1.autoHumMax, (v) => { this.zone1.autoHumMax = v })
+                    }.width('100%')
 
-                Row({ space: 10 }) {
-                  this.inputField('土湿下限', () => this.zone1.autoMoistureMin, (v) => { this.zone1.autoMoistureMin = v })
-                  this.inputField('土湿上限', () => this.zone1.autoMoistureMax, (v) => { this.zone1.autoMoistureMax = v })
-                }.width('100%')
+                    Row({ space: 10 }) {
+                      this.inputField('土湿下限', () => this.zone1.autoMoistureMin, (v) => { this.zone1.autoMoistureMin = v })
+                      this.inputField('土湿上限', () => this.zone1.autoMoistureMax, (v) => { this.zone1.autoMoistureMax = v })
+                    }.width('100%')
 
-                Row({ space: 10 }) {
-                  this.inputField('光照下限', () => this.zone1.autoIntensityMin, (v) => { this.zone1.autoIntensityMin = v })
-                  this.inputField('光照上限', () => this.zone1.autoIntensityMax, (v) => { this.zone1.autoIntensityMax = v })
-                }.width('100%')
-              }
-              .width('100%')
-            }
-            .shadow({
-              radius: 8,
-              color: "#1a000000",
-              offsetX: 0,
-              offsetY: 2,
-            })
-            .visualEffect(new hdsEffect.HdsEffectBuilder()
-              .pressShadow(this.button_gradient_state)
-              .pointLight({
-                sourceType: this.lightSourceTypeControl,
-                illuminatedType: hdsEffect.PointLightIlluminatedType.BORDER_CONTENT,
-                options: {
-                  color: this.lightColor,
-                  intensity: this.lightIntensity,
-                  height: 150
+                    Row({ space: 10 }) {
+                      this.inputField('光照下限', () => this.zone1.autoIntensityMin, (v) => { this.zone1.autoIntensityMin = v })
+                      this.inputField('光照上限', () => this.zone1.autoIntensityMax, (v) => { this.zone1.autoIntensityMax = v })
+                    }.width('100%')
+                  }
+                  .padding(10)
+                  .width('100%')
+                  .height('100%')
                 }
-              })
-              .pressShadow(this.button_gradient_state)
-              .buildEffect())
-            .scale({ x: this.isPressedControl ? 0.97 : 1, y: this.isPressedControl ? 0.97 : 1 })
-            .animation({ curve: Curve.EaseOut, duration: 150 })
-            .onTouch((event: TouchEvent) => {
-              if (event.type === TouchType.Down) {
-                this.lightSourceTypeControl = hdsEffect.PointLightSourceType.BRIGHT;
-                this.isPressedControl = true;
-              } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
-                this.lightSourceTypeControl = hdsEffect.PointLightSourceType.NONE;
-                this.isPressedControl = false;
-              }
-            })
+              }.width('100%')
+            }
             .width(this.isWideScreen ? 'calc(50% - 8vp)' : '100%')
-            .padding(10)
-            .borderWidth(1).borderColor(this.autoEnabled ? this.transparentBorderColor : $r("app.color.border"))
-            .backgroundColor(this.autoEnabled ? this.transparentColor : $r("app.color.background"))
-            .borderRadius(16)
             .opacity(this.animStep3 ? 1 : 0)
             .translate({ y: this.animStep3 ? 0 : 20 })
           }
@@ -600,6 +420,7 @@ export struct AutoPage {
     .ignoreLayoutSafeArea()
   }
 
+  // 🌟 完全原汁原味的原版输入组件逻辑与样式
   @Builder
   inputField(label: string, getter: () => string, setter: (val: string) => void) {
     Row() {
