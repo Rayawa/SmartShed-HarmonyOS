@@ -22,7 +22,6 @@ export struct ManualPage {
   @StorageLink('zone1') zone1: ZoneData = new ZoneData();
   public mqttClient!: MqttReceiverClient;
 
-  // ==================== 动画阶梯状态 ====================
   @State animStep1: number = 0;
   @State animStep2: number = 0;
   @State animStep3: number = 0;
@@ -123,10 +122,8 @@ export struct ManualPage {
 
   build() {
     Column({ space: 20 }) {
-      // 撑开顶部安全区域
       Blank().height(80)
 
-      // ==================== 1. 连接状态栏 ====================
       Stack() {
         HdsButton({
           barWidth: 336,
@@ -163,11 +160,8 @@ export struct ManualPage {
           space: { main: LengthMetrics.vp(16), cross: LengthMetrics.vp(16) }
         }) {
 
-          // ==================== 2. 环境监测数据区域（4个独立材质卡片） ====================
           Column({ space: 12 }) {
-            // 第一排：空气温度 & 空气湿度
             Row({ space: 12 }) {
-              // 空气温度
               Stack() {
                 HdsButton({
                   barWidth: 164,
@@ -188,7 +182,6 @@ export struct ManualPage {
                 }
               }.layoutWeight(1)
 
-              // 空气湿度
               Stack() {
                 HdsButton({
                   barWidth: 164,
@@ -211,9 +204,7 @@ export struct ManualPage {
             }
             .width('100%')
 
-            // 第二排：光照强度 & 土壤湿度
             Row({ space: 12 }) {
-              // 光照强度
               Stack() {
                 HdsButton({
                   barWidth: 164,
@@ -234,7 +225,6 @@ export struct ManualPage {
                 }
               }.layoutWeight(1)
 
-              // 土壤湿度
               Stack() {
                 HdsButton({
                   barWidth: 164,
@@ -261,7 +251,6 @@ export struct ManualPage {
           .opacity(this.animStep2 ? 1 : 0)
           .translate({ y: this.animStep2 ? 0 : 20 })
 
-          // ==================== 3. 手动控制大面板 ====================
           Column({ space: 12 }) {
             Text('手动控制')
               .padding({ left: 4, top: 4 })
@@ -272,8 +261,8 @@ export struct ManualPage {
 
             Stack() {
               HdsButton({
-                barWidth: 336, // 适配父组件减去 padding 后的宽度
-                barHeight: 80, // 适合 Slider 内部元素的安全高度
+                barWidth: 336,
+                barHeight: 80,
                 enablePointLight: true,
                 enableClickScale: true
               }) {
@@ -306,7 +295,6 @@ export struct ManualPage {
               }
             }.width('100%')
 
-            // 水泵调节小卡片
             Stack() {
               HdsButton({
                 barWidth: 336,
@@ -343,7 +331,6 @@ export struct ManualPage {
               }
             }.width('100%')
 
-            // 补光灯调节小卡片
             Stack() {
               HdsButton({
                 barWidth: 336,
@@ -384,23 +371,20 @@ export struct ManualPage {
           .translate({ y: this.animStep3 ? 0 : 20 })
           .width(this.isWideScreen ? 'calc(50% - 8vp)' : '100%')
         }
-        // 🛠️ 移除了内部 Flex 上的特定 padding，交由外层大容器统一接管
       } else {
-        // 未建立通信时的等待层
         Column({ space: 12 }) {
-          LoadingProgress().width(64).height(64).color($r("sys.color.font_primary"))
-          Text('等待建立通信...').fontSize(15).fontColor($r("sys.color.font_secondary")).margin({ top: 12 })
+          LoadingProgress().width(80).height(80) .color($r("sys.color.font_secondary"))
+          Text('等待建立通信...').fontSize(18).fontWeight(FontWeight.Bold) .fontColor($r("sys.color.font_secondary")).margin({ top: 20 })
         }
         .opacity(this.animStep1 ? 1 : 0)
         .translate({ y: this.animStep1 ? 0 : 20 })
-        .width('100%')
-        .layoutWeight(1)
+        .margin({top: 50})
         .justifyContent(FlexAlign.Center)
       }
     }
     .width("100%")
     .height("100%")
-    .padding({ left: 16, right: 16, top: 75, bottom: 32 }) // 🛠️ 统一侧边距，最顶上的连接状态栏和环境区域两侧边缘就完全对齐了
+    .padding({ left: 16, right: 16, top: 75, bottom: 32 })
     .backgroundColor($r("app.color.backcolor"))
     .ignoreLayoutSafeArea()
   }

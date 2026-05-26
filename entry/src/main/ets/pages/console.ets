@@ -1,43 +1,77 @@
-import { hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit';
-import { curves, LengthMetrics } from '@kit.ArkUI';
+import { hdsEffect, hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit';
+import { LengthMetrics } from '@kit.ArkUI';
 import { vibration } from '../service/vibration';
 import { LogMessage, LogType } from '../viewmodel/ConsoleBean';
-import { hdsEffect } from '@kit.UIDesignKit';
+
+class LogDataSource implements IDataSource {
+  private listeners: DataChangeListener[] = [];
+  private list: LogMessage[] = [];
+
+  constructor(list: LogMessage[]) {
+    this.list = list;
+  }
+
+  public reload(newList: LogMessage[]): void {
+    this.list = newList;
+    this.notifyDataReload();
+  }
+
+  totalCount(): number {
+    return this.list.length;
+  }
+
+  getData(index: number): LogMessage {
+    return this.list[index];
+  }
+
+  registerDataChangeListener(listener: DataChangeListener): void {
+    if (this.listeners.indexOf(listener) < 0) {
+      this.listeners.push(listener);
+    }
+  }
+
+  unregisterDataChangeListener(listener: DataChangeListener): void {
+    const pos = this.listeners.indexOf(listener);
+    if (pos >= 0) {
+      this.listeners.splice(pos, 1);
+    }
+  }
+
+  notifyDataReload(): void {
+    this.listeners.forEach(listener => {
+      listener.onDataReloaded();
+    });
+  }
+}
 
 @Component
 export struct consolePage {
-  onCloseSplit?: () => void;
   private scroller: Scroller = new Scroller();
-  @StorageLink("transparentColor")transparentColor: ResourceColor = $r("sys.color.ohos_toggle_bg_transparent")
-  @StorageLink("transparentBorderColor")transparentBorderColor: ResourceColor = $r("sys.color.toast_border_color")
-  @StorageLink("isWideScreen") isWideScreen: boolean = true;
+  @StorageLink("transparentColor") transparentColor: ResourceColor = $r("sys.color.ohos_toggle_bg_transparent")
+  @StorageLink("transparentBorderColor") transparentBorderColor: ResourceColor = $r("sys.color.toast_border_color")
   @StorageLink("vibrationON") vibrationON: boolean = true;
   @Consume('pageStack') pageStack: NavPathStack;
   @State controller: hdsEffect.ShaderEffectController = new hdsEffect.ShaderEffectController();
-  @State animStep1: number = 0;
-  private timer1: number = -1;
+
   @State @Watch('onLogListChange') logList: LogMessage[] = [];
+  private logDataSource: LogDataSource = new LogDataSource([]);
+
   @StorageLink('autoEnabled') autoEnabled: boolean = false;
   private isAtBottom: boolean = true;
 
-  private startEnterAnimation(): void {
-    this.stopEnterAnimation();
-    const duration = 500;
-    const curve = curves.springMotion(0.35, 0.75);
-    if(this.isWideScreen) this.timer1 = setTimeout(() => { animateTo({ duration: duration, curve: curve }, () => { this.animStep1 = 1 }) }, 100);
-    else this.timer1 = setTimeout(() => { animateTo({ duration: duration, curve: curve }, () => { this.animStep1 = 1 }) }, 0);
-  }
-  private stopEnterAnimation(): void {
-    if (this.timer1 !== -1) { clearTimeout(this.timer1); this.timer1 = -1; }
-    this.animStep1 = 0;
-  }
   onLogListChange() {
+    this.logDataSource.reload(this.logList);
     if (this.isAtBottom) {
-      setTimeout(() => {
-        this.scroller.scrollEdge(Edge.Bottom);
-      }, 50);
+      this.scrollToBottom();
     }
   }
+
+  private scrollToBottom() {
+    setTimeout(() => {
+      this.scroller.scrollEdge(Edge.Bottom);
+    }, 16);
+  }
+
   private getTypeColor(type: LogType): Color | string {
     switch (type) {
       case LogType.SEND:
@@ -73,43 +107,43 @@ export struct consolePage {
   }
 
   aboutToAppear(): void {
-    this.startEnterAnimation();
-  }
-  aboutToDisappear(): void {
-    this.stopEnterAnimation();
+    this.logDataSource.reload(this.logList);
   }
 
   onPageShow() {
     this.scroller.scrollEdge(Edge.Bottom);
   }
 
+  onBackPress(): boolean | void {
+    if(this.vibrationON) vibration.dotVibration()
+    this.pageStack.pop()
+  }
+
   build() {
     HdsNavDestination() {
       Stack(){
-
-          Column()
-            .opacity(this.animStep1 ? 1 : 0)
-            .visibility(this.autoEnabled ? Visibility.Visible : Visibility.None)
-            .width("100%").height("100%")
-            .visualEffect(new hdsEffect.HdsEffectBuilder()
-              .shaderEffect({
-                effectType: hdsEffect.EffectType.UV_BACKGROUND_FLOW_LIGHT,
-                animation: {
-                  duration: 10000,
-                  iterations: -1,
-                  autoPlay: true,
-                  onFinish: ()=> {
-                    console.info('Succeeded in finishing');
-                  }
-                },
-                controller: this.controller
-              })
-              .buildEffect())
+        Column()
+          .visibility(this.autoEnabled ? Visibility.Visible : Visibility.None)
+          .width("100%").height("100%")
+          .visualEffect(new hdsEffect.HdsEffectBuilder()
+            .shaderEffect({
+              effectType: hdsEffect.EffectType.UV_BACKGROUND_FLOW_LIGHT,
+              animation: {
+                duration: 10000,
+                iterations: -1,
+                autoPlay: true,
+                onFinish: ()=> {
+                  console.info('Succeeded in finishing');
+                }
+              },
+              controller: this.controller
+            })
+            .buildEffect())
 
         Column() {
           Blank().height(100)
           List({ scroller: this.scroller }) {
-            ForEach(this.logList, (item: LogMessage) => {
+            LazyForEach(this.logDataSource, (item: LogMessage) => {
               ListItem() {
                 Row({ space: 5 }) {
                   Text(`[${this.getTime(item.time)}]`)
@@ -128,14 +162,15 @@ export struct consolePage {
                     .fontSize(12)
                     .textOverflow({ overflow: TextOverflow.Ellipsis })
                     .layoutWeight(1)
-                } .visualEffect(new hdsEffect.HdsEffectBuilder().pointLight({
+                }
+                .visualEffect(new hdsEffect.HdsEffectBuilder().pointLight({
                   illuminatedType: hdsEffect.PointLightIlluminatedType.CONTENT,
                 }).buildEffect())
                 .width("100%")
                 .align(Alignment.Start)
               }
               .borderRadius(16)
-            })
+            }, (item: LogMessage) => item.id.toString())
           }
           .onReachEnd(() => {
             this.isAtBottom = true;
@@ -176,9 +211,6 @@ export struct consolePage {
     .backgroundColor($r("app.color.backcolor"))
     .onBackPressed(() => {
       if (this.vibrationON) vibration.dotVibration();
-      if (this.onCloseSplit) {
-        this.onCloseSplit();
-      }
       return false;
     })
     .ignoreLayoutSafeArea([LayoutSafeAreaType.SYSTEM], [LayoutSafeAreaEdge.TOP, LayoutSafeAreaEdge.BOTTOM])
@@ -194,28 +226,16 @@ export struct consolePage {
           backgroundStyle: { backgroundColor: $r("sys.color.ohos_id_color_background") },
           contentStyle: {
             titleStyle: { mainTitleColor: $r("sys.color.font_primary"), subTitleColor: $r("sys.color.font_secondary") },
-            menuStyle: {
-              backgroundColor: $r("sys.color.comp_background_tertiary"),
-              iconColor: $r("sys.color.icon_primary")
-            },
-            backIconStyle: {
-              backgroundColor: $r("sys.color.comp_background_tertiary"),
-              iconColor: $r("sys.color.icon_primary")
-            },
+            menuStyle: { backgroundColor: $r("sys.color.comp_background_tertiary"), iconColor: $r("sys.color.icon_primary") },
+            backIconStyle: { backgroundColor: $r("sys.color.comp_background_tertiary"), iconColor: $r("sys.color.icon_primary") },
           },
         },
         scrollEffectStyle: {
           backgroundStyle: { backgroundColor: $r("sys.color.ohos_id_color_background_transparent") },
           contentStyle: {
             titleStyle: { mainTitleColor: $r("sys.color.font_primary"), subTitleColor: $r("sys.color.font_secondary") },
-            menuStyle: {
-              backgroundColor: $r("sys.color.comp_background_tertiary"),
-              iconColor: $r("sys.color.icon_primary")
-            },
-            backIconStyle: {
-              backgroundColor: $r("sys.color.comp_background_tertiary"),
-              iconColor: $r("sys.color.icon_primary")
-            },
+            menuStyle: { backgroundColor: $r("sys.color.comp_background_tertiary"), iconColor: $r("sys.color.icon_primary") },
+            backIconStyle: { backgroundColor: $r("sys.color.comp_background_tertiary"), iconColor: $r("sys.color.icon_primary") },
           },
         },
         systemMaterialEffect: {
@@ -228,10 +248,6 @@ export struct consolePage {
         backIcon: {
           action: () => {
             if (this.vibrationON) vibration.dotVibration()
-            if (this.onCloseSplit) {
-              this.onCloseSplit();
-              console.info("堆叠关闭")
-            }
             this.pageStack.pop();
           },
         },

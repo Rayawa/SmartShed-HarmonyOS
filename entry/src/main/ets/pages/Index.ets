@@ -2,7 +2,7 @@
 import { SensorData, ZoneData } from '../viewmodel/SmartShedBean';
 import { LogType, MqttReceiverClient } from '../service/MqttReceiverClient';
 import { HdsNavigation, HdsTabs, ScrollEffectType } from '@hms.hds.hdsBaseComponent';
-import { curves, display, LengthMetrics, promptAction } from '@kit.ArkUI';
+import { LengthMetrics, promptAction } from '@kit.ArkUI';
 import { BlurStrategy, hdsMaterial, HdsNavigationTitleMode, HdsTabsController } from '@kit.UIDesignKit';
 import { ManualPage } from '../view/ManualPage';
 import { AutoPage } from '../view/AutoPage';
@@ -44,8 +44,6 @@ struct Index {
   private TabBarController: HdsTabsController = new HdsTabsController();
   @Provide('pageStack') pageStack: NavPathStack = new NavPathStack();
   @StorageLink("vibrationON") vibrationON: boolean = true;
-  @State navBarWidth: string | number = '100%';
-  @StorageLink("isWideScreen") isWideScreen: boolean = true;
 
   @StorageLink('isBoardConnected') isBoardConnected: boolean = false;
   @StorageLink('autoEnabled') autoEnabled: boolean = false;
@@ -65,15 +63,6 @@ struct Index {
   @State logList: LogMessage[] = [];
 
   private mqttClient!: MqttReceiverClient;
-
-  private toggleSplitMode(isSplit: boolean) {
-    animateTo({
-      curve: curves.springMotion(0.4, 0.8),
-      duration: 400
-    }, () => {
-      this.navBarWidth = isSplit ? '40%' : '100%';
-    })
-  }
 
   aboutToAppear(): void {
     GlobalLogBus.register((type: LogType, content: string) => {
@@ -98,8 +87,6 @@ struct Index {
       this.isBoardConnected = false;
       promptAction.showToast({ message: '板端通讯组件初始化失败', duration: 3000 });
     }
-    if(this.isWideScreen) { this.toggleSplitMode(true); this.pageStack.pushPathByName("ConsolePage", null);}
-    else this.toggleSplitMode(false);
   }
 
   aboutToDisappear(): void {
@@ -118,9 +105,6 @@ struct Index {
     if(this.vibrationON) vibration.dotVibration()
     if (this.pageStack.size() > 0) {
       this.pageStack.pop();
-      if (this.pageStack.size() === 0) {
-        this.toggleSplitMode(false);
-      }
       return true;
     }
   }
@@ -164,15 +148,6 @@ struct Index {
     if (name === "ConsolePage") {
       consolePage({
         logList: this.logList,
-        onCloseSplit: () => {
-          this.isWideScreen = px2vp(display.getDefaultDisplaySync().width)>600? true: false;
-          animateTo({
-            curve: curves.springMotion(0.4, 0.8),
-            duration: 350
-          }, () => {
-            this.navBarWidth= '100%';
-          })
-        }
       })
     }
   }
@@ -210,8 +185,7 @@ struct Index {
         }
       })
     }
-    .mode(NavigationMode.Auto)
-    .navBarWidth(this.navBarWidth)
+    .mode(NavigationMode.Stack)
     .navDestination(this.PageMap)
     .width("100%")
     .ignoreLayoutSafeArea([LayoutSafeAreaType.SYSTEM], [LayoutSafeAreaEdge.TOP, LayoutSafeAreaEdge.BOTTOM])
@@ -247,13 +221,7 @@ struct Index {
                 isEnabled: true,
                 action: () => {
                   if(this.vibrationON) vibration.dotVibration()
-                  let index = this.pageStack.getIndexByName("ConsolePage");
-                  if (index.length > 0) {
-                    this.pageStack.moveToTop("ConsolePage");
-                  } else {
-                    this.pageStack.pushPathByName("ConsolePage", null);
-                    this.toggleSplitMode(true);
-                  }
+                  this.pageStack.pushPathByName("ConsolePage", null);
                 },
               },
             },
