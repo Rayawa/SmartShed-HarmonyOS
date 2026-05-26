@@ -2,15 +2,15 @@
   "string": [
     {
       "name": "entry_desc",
-      "value": "Smart Shed"
+      "value": "Smart Shed Glass"
     },
     {
       "name": "entryability_desc",
-      "value": "Smart Shed"
+      "value": "Smart Shed Glass"
     },
     {
       "name": "entryability_label",
-      "value": "Smart Shed"
+      "value": "Smart Shed Glass"
     }
   ]
 }

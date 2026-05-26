@@ -5,13 +5,13 @@
         "name": "default",
         "type": "HarmonyOS",
         "material": {
-          "certpath": "/Users/raychen/.ohos/config/default_SmartShed_ZQxmGdZoPzVBvmTVS9gT65w7EUoab6d2liTqEIX_yYs=.cer",
+          "certpath": "/Users/raychen/.ohos/config/default_SmartShed-HarmonyOS_MczSTmqfBioAWhyOyvMtl94A43uisYNLQWip3QC_ogM=.cer",
           "keyAlias": "debugKey",
-          "keyPassword": "0000001B7E4CAE5CC565EB3E271F24C27AD99160166E0A034891FACF4D50734FEC984B617B8408E0304BA7",
-          "profile": "/Users/raychen/.ohos/config/default_SmartShed_ZQxmGdZoPzVBvmTVS9gT65w7EUoab6d2liTqEIX_yYs=.p7b",
+          "keyPassword": "0000001B2586740362A91E6EF92E337C0A68239619AC54007A5EFDC7E6B3791077091D088B6255A2F873E4",
+          "profile": "/Users/raychen/.ohos/config/default_SmartShed-HarmonyOS_MczSTmqfBioAWhyOyvMtl94A43uisYNLQWip3QC_ogM=.p7b",
           "signAlg": "SHA256withECDSA",
-          "storeFile": "/Users/raychen/.ohos/config/default_SmartShed_ZQxmGdZoPzVBvmTVS9gT65w7EUoab6d2liTqEIX_yYs=.p12",
-          "storePassword": "0000001BEE128991D71FC9181CF91A4F8CFEC31B4446725BDD4980FC37E0550DB350D8F8F69B1ED5170231"
+          "storeFile": "/Users/raychen/.ohos/config/default_SmartShed-HarmonyOS_MczSTmqfBioAWhyOyvMtl94A43uisYNLQWip3QC_ogM=.p12",
+          "storePassword": "0000001B4AB63BBEAB47B91448BA7947D6D51979C0E20F18AA83E164A87D19F741C36A943B4A404EA129F8"
         }
       }
     ],
