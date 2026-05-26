@@ -181,7 +181,7 @@ struct consolePage {
           LazyForEach(this.logDataSource, (item: LogMessage) => {
             ListItem() {
               Row({ space: 5 }) {
-                Text(`[${this.getTime(item.time)}]`)
+                Text(`  [${this.getTime(item.time)}]`)
                   .fontSize(10)
                   .fontColor(this.autoEnabled ? "#444444" : "#666666")
                   .flexShrink(0)
@@ -218,7 +218,7 @@ struct consolePage {
         })
         .clip(true)
         .width('90%')
-        .padding({ left: 10, right: 10, bottom: 10 })
+        .padding({ right: 10, bottom: 10 })
         .margin({ bottom: 20 })
         .layoutWeight(1)
         .borderWidth(0.5)

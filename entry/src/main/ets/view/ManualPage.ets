@@ -138,7 +138,8 @@ export struct ManualPage {
               if(this.vibrationON) vibration.dotVibration()
               router.pushUrl({ url: "pages/console"})}
           })
-        }.justifyContent(FlexAlign.SpaceBetween).width("100%")
+        }.zIndex(99)
+        .justifyContent(FlexAlign.SpaceBetween).width("100%")
 
         Stack() {
           HdsButton({

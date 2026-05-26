@@ -188,6 +188,34 @@ export struct AutoPage {
   build() {
     Stack(){
       Image($r("app.media.back")).width("100%").height("100%")
+      Column().width("100%").height("100%")
+        .opacity(this.animStep2 ? 1 : 0)
+        .visualEffect(new hdsEffect.HdsEffectBuilder()
+        .shaderEffect({
+          effectType: hdsEffect.EffectType.DUAL_EDGE_FLOW_LIGHT,
+          animation: {
+            duration: 4000,
+            iterations: -1,
+            autoPlay: true,
+            onFinish: () => {
+              console.info('Succeeded in finishing');
+            }
+          },
+          controller: this.controller,
+          params: {
+            firstEdgeFlowLight: {
+              startPos: 0,
+              endPos: 1.0,
+              color: '#1AD0F1',
+            },
+            secondEdgeFlowLight: {
+              startPos: 0.5,
+              endPos: 1.5,
+              color: '#FFA4E5',
+            }
+          }
+        })
+        .buildEffect())
       Column({ space: 20 }) {
         Row(){
           Text(" 智慧大棚控制终端").fontColor(Color.White).fontWeight(FontWeight.Bold).fontSize(30)
@@ -202,7 +230,8 @@ export struct AutoPage {
               if(this.vibrationON) vibration.dotVibration()
               router.pushUrl({ url: "pages/console"})}
           })
-        }.justifyContent(FlexAlign.SpaceBetween).width("100%")
+        }.zIndex(99)
+        .justifyContent(FlexAlign.SpaceBetween).width("100%")
 
         Stack() {
           HdsButton({
@@ -370,6 +399,7 @@ export struct AutoPage {
       .height("100%")
       .padding({ left: 16, right: 16, top: 75, bottom: 32 })
     }
+
     .onVisibleAreaChange([0.0], (isVisible: boolean, currentRatio: number) => {
       this.handleAutoPageVisibility(isVisible && currentRatio > 0);
     })
@@ -399,7 +429,7 @@ export struct AutoPage {
             .height(28)
             .layoutWeight(1)
             .padding({ left: 6, right: 6 })
-            .fontColor("#222222")
+            .fontColor("#DDDDDD")
             .backgroundColor(this.autoEnabled ? this.transparentDiffColor : $r("app.color.diff_background"))
             .borderRadius(16)
             .type(InputType.Number)
