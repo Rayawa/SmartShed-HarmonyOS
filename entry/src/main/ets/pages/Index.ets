@@ -217,7 +217,6 @@ struct Index {
     .ignoreLayoutSafeArea([LayoutSafeAreaType.SYSTEM], [LayoutSafeAreaEdge.TOP, LayoutSafeAreaEdge.BOTTOM])
     .titleMode(HdsNavigationTitleMode.FULL)
     .hideBackButton(true)
-    .divider({ color: $r('app.color.border')  })
     .titleBar({
       style: {
         scrollEffectOpts: {

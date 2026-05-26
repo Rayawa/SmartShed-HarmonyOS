@@ -24,23 +24,28 @@ export struct AutoPage {
   @StorageLink('zone1') zone1: ZoneData = new ZoneData();
   public mqttClient!: MqttReceiverClient;
 
+  @StorageLink("transparentColor")transparentColor: ResourceColor = $r("sys.color.ohos_toggle_bg_transparent")
+  @StorageLink("transparentDiffColor")transparentDiffColor: ResourceColor = $r("sys.color.ohos_id_color_mask_thin_transparent")
+  @StorageLink("transparentBorderColor")transparentBorderColor: ResourceColor = $r("sys.color.toast_border_color")
   @StorageLink("lightColor") lightColor: ResourceColor = Color.White;
   @StorageLink("lightIntensity") lightIntensity: number = 10;
   @StorageLink("illuminatedType") illuminatedType: hdsEffect.PointLightIlluminatedType = hdsEffect.PointLightIlluminatedType.NONE;
   @State button_gradient_state: hdsEffect.PressShadowType = hdsEffect.PressShadowType.NONE;
-  @State isPressed: boolean = false;
+  @State isPressedConnect: boolean = false;
   @State isPressedA: boolean = false;
   @State isPressedB: boolean = false;
   @State isPressedC: boolean = false;
   @State isPressedD: boolean = false;
+  @State isPressedControl: boolean = false;
   @State isPressed1: boolean = false;
   @State isPressed2: boolean = false;
   @State isPressed3: boolean = false;
-  @State lightSourceType: hdsEffect.PointLightSourceType = hdsEffect.PointLightSourceType.NONE;
+  @State lightSourceTypeConnect: hdsEffect.PointLightSourceType = hdsEffect.PointLightSourceType.NONE;
   @State lightSourceTypeA: hdsEffect.PointLightSourceType = hdsEffect.PointLightSourceType.NONE;
   @State lightSourceTypeB: hdsEffect.PointLightSourceType = hdsEffect.PointLightSourceType.NONE;
   @State lightSourceTypeC: hdsEffect.PointLightSourceType = hdsEffect.PointLightSourceType.NONE;
   @State lightSourceTypeD: hdsEffect.PointLightSourceType = hdsEffect.PointLightSourceType.NONE;
+  @State lightSourceTypeControl: hdsEffect.PointLightSourceType = hdsEffect.PointLightSourceType.NONE;
   @State lightSourceType1: hdsEffect.PointLightSourceType = hdsEffect.PointLightSourceType.NONE;
   @State lightSourceType2: hdsEffect.PointLightSourceType = hdsEffect.PointLightSourceType.NONE;
   @State lightSourceType3: hdsEffect.PointLightSourceType = hdsEffect.PointLightSourceType.NONE;
@@ -225,11 +230,11 @@ export struct AutoPage {
         Blank().height(80)
         Row() {
           Circle({ width: 8, height: 8 })
-            .fill(this.isBoardConnected ? $r("app.color.green_dark") : $r("app.color.red_dark"))
+            .fill(this.isBoardConnected ? "#ff287328" : "#FF3B30")
             .margin({ right: 6 })
           Text(this.isBoardConnected ? '已连接至Rayawa/Hi3861' : '与开发板连接已断开，请检查网络')
             .fontSize(14)
-            .fontColor(this.isBoardConnected ? $r("app.color.green_dark") : $r("app.color.red_dark"))
+            .fontColor(this.isBoardConnected ? "#ff287328" : "#FF3B30")
         }
         .shadow({
           radius: 8,
@@ -237,17 +242,38 @@ export struct AutoPage {
           offsetX: 0,
           offsetY: 2,
         })
-        .visualEffect(new hdsEffect.HdsEffectBuilder().pointLight({
-          illuminatedType: hdsEffect.PointLightIlluminatedType.BORDER_CONTENT,
-        }).buildEffect())
+        .visualEffect(new hdsEffect.HdsEffectBuilder()
+          .pressShadow(this.button_gradient_state)
+          .pointLight({
+            sourceType: this.lightSourceTypeConnect,
+            illuminatedType: hdsEffect.PointLightIlluminatedType.BORDER_CONTENT,
+            options: {
+              color: this.lightColor,
+              intensity: this.lightIntensity,
+              height: 150
+            }
+          })
+          .pressShadow(this.button_gradient_state)
+          .buildEffect())
+        .scale({ x: this.isPressedConnect ? 0.97 : 1, y: this.isPressedConnect ? 0.97 : 1 })
+        .animation({ curve: Curve.EaseOut, duration: 150 })
+        .onTouch((event: TouchEvent) => {
+          if (event.type === TouchType.Down) {
+            this.lightSourceTypeConnect = hdsEffect.PointLightSourceType.BRIGHT;
+            this.isPressedConnect = true;
+          } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+            this.lightSourceTypeConnect = hdsEffect.PointLightSourceType.NONE;
+            this.isPressedConnect = false;
+          }
+        })
         .opacity(this.animStep1 ? 1 : 0)
         .translate({ y: this.animStep1 ? 0 : 20 })
         .width('100%')
         .padding({ left: 16, right: 16, top: 10, bottom: 10 })
-        .backgroundColor(this.isBoardConnected ? $r("app.color.green_light") : $r("app.color.red_light"))
+        .backgroundColor(this.transparentColor)
         .borderRadius(16)
-        .borderWidth(1)
-        .borderColor(this.isBoardConnected ? $r("app.color.green_dark") : $r("app.color.red_dark"))
+        .borderWidth(0.5)
+        .borderColor(this.isBoardConnected ? "#ff287328" : "#FF3B30")
 
         if(this.isBoardConnected){
           Flex({
@@ -259,14 +285,14 @@ export struct AutoPage {
                 Column() {
                   Row() {
                     Circle({ width: 6, height: 6 }).fill('#FF7D00')
-                    Text('空气温度').fontSize(12).fontColor($r("sys.color.font_secondary")).margin({ left: 6 })
+                    Text('空气温度').fontSize(12).fontColor("#444444").margin({ left: 6 })
                   }.width('100%')
 
                   Blank()
                   Text(`${this.temp} ℃`)
                     .fontSize(22)
                     .fontWeight(FontWeight.Bold)
-                    .fontColor($r("sys.color.font_primary"))
+                    .fontColor("#444444")
                     .width('100%')
                     .textAlign(TextAlign.Start)
                 }
@@ -295,11 +321,11 @@ export struct AutoPage {
                   }
                 })
                 .borderWidth(1)
-                .borderColor($r("app.color.border"))
+                .borderColor(this.autoEnabled ? this.transparentBorderColor : $r("app.color.border"))
                 .layoutWeight(1)
                 .height('100%')
                 .padding(14)
-                .backgroundColor($r("app.color.background"))
+                .backgroundColor(this.autoEnabled ? this.transparentColor : $r("app.color.background"))
                 .borderRadius(12)
                 .shadow({
                   radius: 8,
@@ -311,14 +337,14 @@ export struct AutoPage {
                 Column() {
                   Row() {
                     Circle({ width: 6, height: 6 }).fill('#007DFF')
-                    Text('空气湿度').fontSize(12).fontColor($r("sys.color.font_secondary")).margin({ left: 6 })
+                    Text('空气湿度').fontSize(12).fontColor("#444444").margin({ left: 6 })
                   }.width('100%')
 
                   Blank()
                   Text(`${this.hum} %`)
                     .fontSize(22)
                     .fontWeight(FontWeight.Bold)
-                    .fontColor($r("sys.color.font_primary"))
+                    .fontColor("#444444")
                     .width('100%')
                     .textAlign(TextAlign.Start)
                 }
@@ -347,11 +373,11 @@ export struct AutoPage {
                   }
                 })
                 .borderWidth(1)
-                .borderColor($r("app.color.border"))
+                .borderColor(this.autoEnabled ? this.transparentBorderColor : $r("app.color.border"))
                 .layoutWeight(1)
                 .height('100%')
                 .padding(14)
-                .backgroundColor($r("app.color.background"))
+                .backgroundColor(this.autoEnabled ? this.transparentColor : $r("app.color.background"))
                 .borderRadius(12)
                 .shadow({
                   radius: 8,
@@ -367,14 +393,14 @@ export struct AutoPage {
                 Column() {
                   Row() {
                     Circle({ width: 6, height: 6 }).fill('#FFBF00')
-                    Text('光照强度').fontSize(12).fontColor($r("sys.color.font_secondary")).margin({ left: 6 })
+                    Text('光照强度').fontSize(12).fontColor("#444444").margin({ left: 6 })
                   }.width('100%')
 
                   Blank()
                   Text(`${this.intensity} Lx`)
                     .fontSize(22)
                     .fontWeight(FontWeight.Bold)
-                    .fontColor($r("sys.color.font_primary"))
+                    .fontColor("#444444")
                     .width('100%')
                     .textAlign(TextAlign.Start)
                 }
@@ -403,11 +429,11 @@ export struct AutoPage {
                   }
                 })
                 .borderWidth(1)
-                .borderColor($r("app.color.border"))
+                .borderColor(this.autoEnabled ? this.transparentBorderColor : $r("app.color.border"))
                 .layoutWeight(1)
                 .height('100%')
                 .padding(14)
-                .backgroundColor($r("app.color.background"))
+                .backgroundColor(this.autoEnabled ? this.transparentColor : $r("app.color.background"))
                 .borderRadius(12)
                 .shadow({
                   radius: 8,
@@ -419,14 +445,14 @@ export struct AutoPage {
                 Column() {
                   Row() {
                     Circle({ width: 6, height: 6 }).fill('#34C759')
-                    Text('土壤湿度').fontSize(12).fontColor($r("sys.color.font_secondary")).margin({ left: 6 })
+                    Text('土壤湿度').fontSize(12).fontColor("#444444").margin({ left: 6 })
                   }.width('100%')
 
                   Blank()
                   Text(`${this.moisture} %`)
                     .fontSize(22)
                     .fontWeight(FontWeight.Bold)
-                    .fontColor($r("sys.color.font_primary"))
+                    .fontColor("#444444")
                     .width('100%')
                     .textAlign(TextAlign.Start)
                 }
@@ -455,11 +481,11 @@ export struct AutoPage {
                   }
                 })
                 .borderWidth(1)
-                .borderColor($r("app.color.border"))
+                .borderColor(this.autoEnabled ? this.transparentBorderColor : $r("app.color.border"))
                 .layoutWeight(1)
                 .height('100%')
                 .padding(14)
-                .backgroundColor($r("app.color.background"))
+                .backgroundColor(this.autoEnabled ? this.transparentColor : $r("app.color.background"))
                 .borderRadius(12)
                 .shadow({
                   radius: 8,
@@ -481,7 +507,7 @@ export struct AutoPage {
                 .fontSize(17)
                 .fontWeight(FontWeight.Bold)
                 .width('100%')
-                .fontColor($r("sys.color.font_primary"))
+                .fontColor("#444444")
                 .margin({ bottom: 4 })
 
               Column({ space: 10 }) {
@@ -511,7 +537,7 @@ export struct AutoPage {
             .visualEffect(new hdsEffect.HdsEffectBuilder()
               .pressShadow(this.button_gradient_state)
               .pointLight({
-                sourceType: this.lightSourceType,
+                sourceType: this.lightSourceTypeControl,
                 illuminatedType: hdsEffect.PointLightIlluminatedType.BORDER_CONTENT,
                 options: {
                   color: this.lightColor,
@@ -521,29 +547,29 @@ export struct AutoPage {
               })
               .pressShadow(this.button_gradient_state)
               .buildEffect())
-            .scale({ x: this.isPressed ? 0.97 : 1, y: this.isPressed ? 0.97 : 1 })
+            .scale({ x: this.isPressedControl ? 0.97 : 1, y: this.isPressedControl ? 0.97 : 1 })
             .animation({ curve: Curve.EaseOut, duration: 150 })
             .onTouch((event: TouchEvent) => {
               if (event.type === TouchType.Down) {
-                this.lightSourceType = hdsEffect.PointLightSourceType.BRIGHT;
-                this.isPressed = true;
+                this.lightSourceTypeControl = hdsEffect.PointLightSourceType.BRIGHT;
+                this.isPressedControl = true;
               } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
-                this.lightSourceType = hdsEffect.PointLightSourceType.NONE;
-                this.isPressed = false;
+                this.lightSourceTypeControl = hdsEffect.PointLightSourceType.NONE;
+                this.isPressedControl = false;
               }
             })
             .width(this.isWideScreen ? 'calc(50% - 8vp)' : '100%')
             .padding(10)
-            .borderWidth(1).borderColor($r("app.color.border"))
-            .backgroundColor($r("app.color.background"))
+            .borderWidth(1).borderColor(this.autoEnabled ? this.transparentBorderColor : $r("app.color.border"))
+            .backgroundColor(this.autoEnabled ? this.transparentColor : $r("app.color.background"))
             .borderRadius(16)
             .opacity(this.animStep3 ? 1 : 0)
             .translate({ y: this.animStep3 ? 0 : 20 })
           }
         } else {
           Column({ space: 12 }) {
-            LoadingProgress().width(80).height(80).color(Color.Black)
-            Text('等待建立通信...').fontSize(18).fontWeight(FontWeight.Bold).fontColor(Color.Black).margin({ top: 20 })
+            LoadingProgress().width(80).height(80).color("#444444")
+            Text('等待建立通信...').fontSize(18).fontWeight(FontWeight.Bold).fontColor("#444444").margin({ top: 20 })
           }
           .opacity(this.animStep1 ? 1 : 0)
           .translate({ y: this.animStep1 ? 0 : 20 })
@@ -580,14 +606,15 @@ export struct AutoPage {
       Text(label)
         .fontSize(13)
         .width(60)
-        .fontColor($r("sys.color.font_secondary"))
+        .fontColor("#444444")
         .margin({ right: 5 })
       TextInput({ text: getter() })
         .fontSize(11)
         .height(28)
         .width(65)
         .padding({ left: 6, right: 6 })
-        .backgroundColor($r("app.color.diff_background"))
+        .fontColor("#DDDDDD")
+        .backgroundColor(this.autoEnabled ? this.transparentDiffColor : $r("app.color.diff_background"))
         .borderRadius(6)
         .type(InputType.Number)
         .onChange((val: string) => {

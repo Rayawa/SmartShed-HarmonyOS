@@ -8,6 +8,8 @@ import { hdsEffect } from '@kit.UIDesignKit';
 export struct consolePage {
   onCloseSplit?: () => void;
   private scroller: Scroller = new Scroller();
+  @StorageLink("transparentColor")transparentColor: ResourceColor = $r("sys.color.ohos_toggle_bg_transparent")
+  @StorageLink("transparentBorderColor")transparentBorderColor: ResourceColor = $r("sys.color.toast_border_color")
   @StorageLink("isWideScreen") isWideScreen: boolean = true;
   @StorageLink("vibrationON") vibrationON: boolean = true;
   @Consume('pageStack') pageStack: NavPathStack;
@@ -39,15 +41,15 @@ export struct consolePage {
   private getTypeColor(type: LogType): Color | string {
     switch (type) {
       case LogType.SEND:
-        return '#007DFF';
+        return this.autoEnabled? "#ff0055ff" : '#007DFF';
       case LogType.RECEIVE:
-        return '#30BF17';
+        return this.autoEnabled? "#ff12660c" : '#ff22bf17';
       case LogType.INFO:
-        return '#999999';
+        return this.autoEnabled? "#444444" : '#666666';
       case LogType.ERROR:
         return '#F5222D';
       default:
-        return '#333333';
+        return this.autoEnabled? "#111111" : '#333333';
     }
   }
 
@@ -112,7 +114,7 @@ export struct consolePage {
                 Row({ space: 5 }) {
                   Text(`[${this.getTime(item.time)}]`)
                     .fontSize(10)
-                    .fontColor(Color.Gray)
+                    .fontColor(this.autoEnabled? "#444444" : "#666666")
                     .flexShrink(0)
 
                   Text(`[${this.getTypeLabel(item.type)}]`)
@@ -125,15 +127,25 @@ export struct consolePage {
                     .fontColor(this.getTypeColor(item.type))
                     .fontSize(12)
                     .textOverflow({ overflow: TextOverflow.Ellipsis })
+                    .layoutWeight(1)
                 } .visualEffect(new hdsEffect.HdsEffectBuilder().pointLight({
                   illuminatedType: hdsEffect.PointLightIlluminatedType.CONTENT,
                 }).buildEffect())
-                .width("99%")
+                .width("100%")
                 .align(Alignment.Start)
               }
               .borderRadius(16)
             })
           }
+          .onReachEnd(() => {
+            this.isAtBottom = true;
+          })
+          .onScrollFrameBegin((offset: number, state: ScrollState) => {
+            if (offset < 0) {
+              this.isAtBottom = false;
+            }
+            return { offsetRemain: offset };
+          })
           .onScrollIndex((end: number) => {
             if (end >= this.logList.length - 4) {
               this.isAtBottom = true;
@@ -141,14 +153,14 @@ export struct consolePage {
               this.isAtBottom = false;
             }
           })
-
+          .clip(true)
           .width('96%')
           .padding({ left: 10, right: 10, bottom: 10 })
           .margin({ bottom: 20 })
           .layoutWeight(1)
           .borderWidth(0.5)
-          .borderColor($r("app.color.border"))
-          .backgroundColor($r("app.color.background"))
+          .borderColor(this.autoEnabled ? this.transparentBorderColor :$r("app.color.border"))
+          .backgroundColor(this.autoEnabled ? this.transparentColor :$r("app.color.background"))
           .borderRadius(16)
           .shadow({
             radius: 8,
