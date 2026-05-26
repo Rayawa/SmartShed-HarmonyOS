@@ -3,38 +3,6 @@
     {
       "name": "start_window_background",
       "value": "#0F1A2A"
-    },
-    {
-      "name": "backcolor",
-      "value": "#0B0F17FF"
-    },
-    {
-      "name": "background",
-      "value": "#161B26FF"
-    },
-    {
-      "name": "diff_background",
-      "value": "#222A3CFF"
-    },
-    {
-      "name": "border",
-      "value": "#2D3748FF"
-    },
-    {
-      "name": "red_dark",
-      "value": "#FF453A"
-    },
-    {
-      "name": "red_light",
-      "value": "#2C1414"
-    },
-    {
-      "name": "green_dark",
-      "value": "#30D158"
-    },
-    {
-      "name": "green_light",
-      "value": "#142918"
     }
   ]
 }

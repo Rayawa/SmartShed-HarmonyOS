@@ -2,8 +2,7 @@ import { hdsEffect } from '@kit.UIDesignKit';
 import { vibration } from '../service/vibration';
 import { LogMessage, LogType } from '../viewmodel/ConsoleBean';
 import { HdsButton } from '../viewmodel/HdsButton';
-import { GlobalLogBus } from './Index'; // ✨ 引入你定义的全局日志总线来做数据同步
-import { window } from '@kit.ArkUI';
+import { GlobalLogBus } from './Index';
 
 class LogDataSource implements IDataSource {
   private listeners: DataChangeListener[] = [];
@@ -109,7 +108,6 @@ struct consolePage {
   }
 
   aboutToAppear(): void {
-    // ✨ 修复数据不同步：作为新页面启动时，必须重新向全局总线注册，接管新的日志推送
     GlobalLogBus.register((type: LogType, content: string) => {
       const now = new Date();
       const timeStr = `${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`;
@@ -121,7 +119,6 @@ struct consolePage {
   }
 
   aboutToDisappear(): void {
-    // 页面销毁时解绑，防止内存泄漏
     GlobalLogBus.unregister();
   }
 
@@ -165,13 +162,12 @@ struct consolePage {
             iconResource: $r("sys.symbol.chevron_backward"),
             onButtonClick: () => {
               if(this.vibrationON) vibration.dotVibration()
-              // ✨ 关键修复：使用标准安全的 Context 路由退出
               this.getUIContext().getRouter().back();
             }
           })
 
           Text("日志")
-            .fontColor(this.autoEnabled ? Color.White : $r("sys.color.font_primary"))
+            .fontColor(Color.White)
             .fontWeight(FontWeight.Bold)
             .fontSize(24)
             .layoutWeight(1)
@@ -221,12 +217,11 @@ struct consolePage {
           else { this.isAtBottom = false; }
         })
         .clip(true)
-        .width('96%')
+        .width('90%')
         .padding({ left: 10, right: 10, bottom: 10 })
         .margin({ bottom: 20 })
         .layoutWeight(1)
         .borderWidth(0.5)
-        .borderColor(this.autoEnabled ? this.transparentBorderColor : $r("app.color.border"))
         .backgroundColor(this.autoEnabled ? this.transparentColor : $r("app.color.background"))
         .borderRadius(16)
         .shadow({ radius: 8, color: "#1a000000", offsetX: 0, offsetY: 2 })
@@ -236,7 +231,7 @@ struct consolePage {
     }
     .width("100%")
     .height("100%")
-    .backgroundColor(this.autoEnabled ? Color.Black : $r("app.color.backcolor"))
-    .ignoreLayoutSafeArea([LayoutSafeAreaType.SYSTEM], [LayoutSafeAreaEdge.TOP, LayoutSafeAreaEdge.BOTTOM])
+    .backgroundColor($r("app.color.backcolor"))
+    .ignoreLayoutSafeArea()
   }
 }

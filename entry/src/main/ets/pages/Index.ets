@@ -162,7 +162,7 @@ struct Index {
       .vertical(false)
       .scrollable(false)
       .barFloatingStyle({
-        barBottomMargin: 30,
+        barBottomMargin: 40,
         lightColor: Color.White,
         gradientMask: { maskColor: $r("app.color.backcolor"), maskHeight: 1 },
         systemMaterialEffect:{
