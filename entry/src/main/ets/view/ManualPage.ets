@@ -4,6 +4,7 @@ import { LogType, MqttReceiverClient, TOPIC_FAN, TOPIC_LED, TOPIC_WATER_PUMP } f
 import { curves, display, LengthMetrics, promptAction, router } from '@kit.ArkUI';
 import { GlobalLogBus } from '../pages/Index';
 import { HdsButton } from '../viewmodel/HdsButton';
+import { vibration } from '../service/vibration';
 
 @Component
 export struct ManualPage {
@@ -134,6 +135,7 @@ export struct ManualPage {
             enableDrag: true,
             iconResource: $r("sys.symbol.code_square"),
             onButtonClick: () => {
+              if(this.vibrationON) vibration.dotVibration()
               router.pushUrl({ url: "pages/console"})}
           })
         }.justifyContent(FlexAlign.SpaceBetween).width("100%")

@@ -6,20 +6,17 @@
     },
     {
       "name": "backcolor",
-      "value": "#F2F6FAFF"
+      "value": "#0B0F17FF"
     },
     {
       "name": "background",
-      "value": "#FFFFFFFF"
+      "value": "#161B26FF"
     },
     {
       "name": "diff_background",
-      "value": "#E1EDFAFF"
+      "value": "#222A3CFF"
     },
-    {
-      "name": "border",
-      "value": "#D2E0F0FF"
-    },
+
     {
       "name": "red_dark",
       "value": "#FF3B30"

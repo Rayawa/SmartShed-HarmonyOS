@@ -6,6 +6,7 @@ import { hdsEffect } from '@kit.UIDesignKit';
 import { LogType } from '../viewmodel/ConsoleBean';
 import { GlobalLogBus } from '../pages/Index';
 import { HdsButton } from '../viewmodel/HdsButton';
+import { vibration } from '../service/vibration';
 
 
 @Component
@@ -198,6 +199,7 @@ export struct AutoPage {
             enableDrag: true,
             iconResource: $r("sys.symbol.code_square"),
             onButtonClick: () => {
+              if(this.vibrationON) vibration.dotVibration()
               router.pushUrl({ url: "pages/console"})}
           })
         }.justifyContent(FlexAlign.SpaceBetween).width("100%")
