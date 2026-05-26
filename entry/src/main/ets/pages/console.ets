@@ -1,7 +1,9 @@
-import { hdsEffect, hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit';
-import { LengthMetrics } from '@kit.ArkUI';
+import { hdsEffect } from '@kit.UIDesignKit';
 import { vibration } from '../service/vibration';
 import { LogMessage, LogType } from '../viewmodel/ConsoleBean';
+import { HdsButton } from '../viewmodel/HdsButton';
+import { GlobalLogBus } from './Index'; // ✨ 引入你定义的全局日志总线来做数据同步
+import { window } from '@kit.ArkUI';
 
 class LogDataSource implements IDataSource {
   private listeners: DataChangeListener[] = [];
@@ -44,13 +46,13 @@ class LogDataSource implements IDataSource {
   }
 }
 
+@Entry
 @Component
-export struct consolePage {
+struct consolePage {
   private scroller: Scroller = new Scroller();
   @StorageLink("transparentColor") transparentColor: ResourceColor = $r("sys.color.ohos_toggle_bg_transparent")
   @StorageLink("transparentBorderColor") transparentBorderColor: ResourceColor = $r("sys.color.toast_border_color")
   @StorageLink("vibrationON") vibrationON: boolean = true;
-  @Consume('pageStack') pageStack: NavPathStack;
   @State controller: hdsEffect.ShaderEffectController = new hdsEffect.ShaderEffectController();
 
   @State @Watch('onLogListChange') logList: LogMessage[] = [];
@@ -107,7 +109,20 @@ export struct consolePage {
   }
 
   aboutToAppear(): void {
+    // ✨ 修复数据不同步：作为新页面启动时，必须重新向全局总线注册，接管新的日志推送
+    GlobalLogBus.register((type: LogType, content: string) => {
+      const now = new Date();
+      const timeStr = `${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`;
+      this.logList.push({ id: Date.now(), time: timeStr, type, content });
+      if (this.logList.length > 100) this.logList.shift();
+    });
+
     this.logDataSource.reload(this.logList);
+  }
+
+  aboutToDisappear(): void {
+    // 页面销毁时解绑，防止内存泄漏
+    GlobalLogBus.unregister();
   }
 
   onPageShow() {
@@ -116,147 +131,112 @@ export struct consolePage {
 
   onBackPress(): boolean | void {
     if(this.vibrationON) vibration.dotVibration()
-    this.pageStack.pop()
+    this.getUIContext().getRouter().back();
+    return true;
   }
 
   build() {
-    HdsNavDestination() {
-      Stack(){
-        Column()
-          .visibility(this.autoEnabled ? Visibility.Visible : Visibility.None)
-          .width("100%").height("100%")
-          .visualEffect(new hdsEffect.HdsEffectBuilder()
-            .shaderEffect({
-              effectType: hdsEffect.EffectType.UV_BACKGROUND_FLOW_LIGHT,
-              animation: {
-                duration: 10000,
-                iterations: -1,
-                autoPlay: true,
-                onFinish: ()=> {
-                  console.info('Succeeded in finishing');
-                }
-              },
-              controller: this.controller
-            })
-            .buildEffect())
-
-        Column() {
-          Blank().height(100)
-          List({ scroller: this.scroller }) {
-            LazyForEach(this.logDataSource, (item: LogMessage) => {
-              ListItem() {
-                Row({ space: 5 }) {
-                  Text(`[${this.getTime(item.time)}]`)
-                    .fontSize(10)
-                    .fontColor(this.autoEnabled? "#444444" : "#666666")
-                    .flexShrink(0)
-
-                  Text(`[${this.getTypeLabel(item.type)}]`)
-                    .fontColor(this.getTypeColor(item.type))
-                    .fontSize(12)
-                    .fontWeight(FontWeight.Bold)
-                    .flexShrink(0)
-
-                  Text(item.content)
-                    .fontColor(this.getTypeColor(item.type))
-                    .fontSize(12)
-                    .textOverflow({ overflow: TextOverflow.Ellipsis })
-                    .layoutWeight(1)
-                }
-                .visualEffect(new hdsEffect.HdsEffectBuilder().pointLight({
-                  illuminatedType: hdsEffect.PointLightIlluminatedType.CONTENT,
-                }).buildEffect())
-                .width("100%")
-                .align(Alignment.Start)
-              }
-              .borderRadius(16)
-            }, (item: LogMessage) => item.id.toString())
-          }
-          .onReachEnd(() => {
-            this.isAtBottom = true;
-          })
-          .onScrollFrameBegin((offset: number, state: ScrollState) => {
-            if (offset < 0) {
-              this.isAtBottom = false;
-            }
-            return { offsetRemain: offset };
-          })
-          .onScrollIndex((end: number) => {
-            if (end >= this.logList.length - 4) {
-              this.isAtBottom = true;
-            } else {
-              this.isAtBottom = false;
-            }
-          })
-          .clip(true)
-          .width('96%')
-          .padding({ left: 10, right: 10, bottom: 10 })
-          .margin({ bottom: 20 })
-          .layoutWeight(1)
-          .borderWidth(0.5)
-          .borderColor(this.autoEnabled ? this.transparentBorderColor :$r("app.color.border"))
-          .backgroundColor(this.autoEnabled ? this.transparentColor :$r("app.color.background"))
-          .borderRadius(16)
-          .shadow({
-            radius: 8,
-            color: "#1a000000",
-            offsetX: 0,
-            offsetY: 2,
-          })
-        }
+    Stack() {
+      Column()
+        .visibility(this.autoEnabled ? Visibility.Visible : Visibility.None)
         .width("100%").height("100%")
-      }
-    }
-    .height("100%").width("100%")
-    .backgroundColor($r("app.color.backcolor"))
-    .onBackPressed(() => {
-      if (this.vibrationON) vibration.dotVibration();
-      return false;
-    })
-    .ignoreLayoutSafeArea([LayoutSafeAreaType.SYSTEM], [LayoutSafeAreaEdge.TOP, LayoutSafeAreaEdge.BOTTOM])
-    .titleBar({
-      style: {
-        scrollEffectOpts: {
-          enableScrollEffect: true,
-          scrollEffectType: ScrollEffectType.GRADIENT_BLUR,
-          blurEffectiveStartOffset: LengthMetrics.vp(0),
-          blurEffectiveEndOffset: LengthMetrics.vp(20),
-        },
-        originalStyle: {
-          backgroundStyle: { backgroundColor: $r("sys.color.ohos_id_color_background") },
-          contentStyle: {
-            titleStyle: { mainTitleColor: $r("sys.color.font_primary"), subTitleColor: $r("sys.color.font_secondary") },
-            menuStyle: { backgroundColor: $r("sys.color.comp_background_tertiary"), iconColor: $r("sys.color.icon_primary") },
-            backIconStyle: { backgroundColor: $r("sys.color.comp_background_tertiary"), iconColor: $r("sys.color.icon_primary") },
-          },
-        },
-        scrollEffectStyle: {
-          backgroundStyle: { backgroundColor: $r("sys.color.ohos_id_color_background_transparent") },
-          contentStyle: {
-            titleStyle: { mainTitleColor: $r("sys.color.font_primary"), subTitleColor: $r("sys.color.font_secondary") },
-            menuStyle: { backgroundColor: $r("sys.color.comp_background_tertiary"), iconColor: $r("sys.color.icon_primary") },
-            backIconStyle: { backgroundColor: $r("sys.color.comp_background_tertiary"), iconColor: $r("sys.color.icon_primary") },
-          },
-        },
-        systemMaterialEffect: {
-          materialType: hdsMaterial.MaterialType.IMMERSIVE,
-          materialLevel: hdsMaterial.MaterialLevel.EXQUISITE
-        }
-      },
-      content: {
-        title: { mainTitle: "日志" },
-        backIcon: {
-          action: () => {
-            if (this.vibrationON) vibration.dotVibration()
-            this.pageStack.pop();
-          },
-        },
-      },
-    });
-  }
-}
+        .visualEffect(new hdsEffect.HdsEffectBuilder()
+          .shaderEffect({
+            effectType: hdsEffect.EffectType.UV_BACKGROUND_FLOW_LIGHT,
+            animation: {
+              duration: 10000,
+              iterations: -1,
+              autoPlay: true,
+            },
+            controller: this.controller
+          })
+          .buildEffect())
 
-@Builder
-export function ConsolePageBuilder() {
-  consolePage()
+
+      Column() {
+        Blank().height(40)
+        Row(){
+          HdsButton({
+            barWidth: 45,
+            barHeight: 57,
+            enableClickScale: true,
+            enablePointLight: true,
+            enableDrag: true,
+            iconResource: $r("sys.symbol.chevron_backward"),
+            onButtonClick: () => {
+              if(this.vibrationON) vibration.dotVibration()
+              // ✨ 关键修复：使用标准安全的 Context 路由退出
+              this.getUIContext().getRouter().back();
+            }
+          })
+
+          Text("日志")
+            .fontColor(this.autoEnabled ? Color.White : $r("sys.color.font_primary"))
+            .fontWeight(FontWeight.Bold)
+            .fontSize(24)
+            .layoutWeight(1)
+            .margin({ left: 10 })
+        }
+        .zIndex(99)
+        .width("100%")
+        .padding({ left: 16, right: 16, top: 10, bottom: 10 })
+
+        List({ scroller: this.scroller }) {
+          LazyForEach(this.logDataSource, (item: LogMessage) => {
+            ListItem() {
+              Row({ space: 5 }) {
+                Text(`[${this.getTime(item.time)}]`)
+                  .fontSize(10)
+                  .fontColor(this.autoEnabled ? "#444444" : "#666666")
+                  .flexShrink(0)
+
+                Text(`[${this.getTypeLabel(item.type)}]`)
+                  .fontColor(this.getTypeColor(item.type))
+                  .fontSize(12)
+                  .fontWeight(FontWeight.Bold)
+                  .flexShrink(0)
+
+                Text(item.content)
+                  .fontColor(this.getTypeColor(item.type))
+                  .fontSize(12)
+                  .textOverflow({ overflow: TextOverflow.Ellipsis })
+                  .layoutWeight(1)
+              }
+              .visualEffect(new hdsEffect.HdsEffectBuilder().pointLight({
+                illuminatedType: hdsEffect.PointLightIlluminatedType.CONTENT,
+              }).buildEffect())
+              .width("100%")
+              .align(Alignment.Start)
+            }
+            .borderRadius(16)
+          }, (item: LogMessage) => item.id.toString())
+        }
+        .onReachEnd(() => { this.isAtBottom = true; })
+        .onScrollFrameBegin((offset: number, state: ScrollState) => {
+          if (offset < 0) { this.isAtBottom = false; }
+          return { offsetRemain: offset };
+        })
+        .onScrollIndex((end: number) => {
+          if (end >= this.logList.length - 4) { this.isAtBottom = true; }
+          else { this.isAtBottom = false; }
+        })
+        .clip(true)
+        .width('96%')
+        .padding({ left: 10, right: 10, bottom: 10 })
+        .margin({ bottom: 20 })
+        .layoutWeight(1)
+        .borderWidth(0.5)
+        .borderColor(this.autoEnabled ? this.transparentBorderColor : $r("app.color.border"))
+        .backgroundColor(this.autoEnabled ? this.transparentColor : $r("app.color.background"))
+        .borderRadius(16)
+        .shadow({ radius: 8, color: "#1a000000", offsetX: 0, offsetY: 2 })
+
+      }
+      .width("100%").height("100%")
+    }
+    .width("100%")
+    .height("100%")
+    .backgroundColor(this.autoEnabled ? Color.Black : $r("app.color.backcolor"))
+    .ignoreLayoutSafeArea([LayoutSafeAreaType.SYSTEM], [LayoutSafeAreaEdge.TOP, LayoutSafeAreaEdge.BOTTOM])
+  }
 }

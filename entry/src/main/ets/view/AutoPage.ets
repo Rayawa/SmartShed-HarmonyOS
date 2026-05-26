@@ -1,7 +1,7 @@
 // src/main/ets/view/AutoPage.ets
 import { ZoneData } from '../viewmodel/SmartShedBean';
 import { MqttReceiverClient, TOPIC_FAN, TOPIC_LED, TOPIC_WATER_PUMP } from '../service/MqttReceiverClient';
-import { curves, display, LengthMetrics, promptAction } from '@kit.ArkUI';
+import { curves, display, promptAction, router } from '@kit.ArkUI';
 import { hdsEffect } from '@kit.UIDesignKit';
 import { LogType } from '../viewmodel/ConsoleBean';
 import { GlobalLogBus } from '../pages/Index';
@@ -186,28 +186,21 @@ export struct AutoPage {
 
   build() {
     Stack(){
-      Column()
-        .opacity(this.animStep1 ? 1 : 0)
-        .height("100%")
-        .width("100%")
-        .visualEffect(new hdsEffect.HdsEffectBuilder()
-          .shaderEffect({
-            effectType: hdsEffect.EffectType.UV_BACKGROUND_FLOW_LIGHT,
-            animation: {
-              duration: 10000,
-              iterations: -1,
-              autoPlay: true,
-              onFinish: ()=> {
-                console.info('Succeeded in finishing');
-              }
-            },
-            controller: this.controller
+      Image($r("app.media.back")).width("100%").height("100%")
+      Column({ space: 20 }) {
+        Row(){
+          Text(" 智慧大棚控制终端").fontColor(Color.White).fontWeight(FontWeight.Bold).fontSize(30)
+          HdsButton({
+            barWidth: 45,
+            barHeight: 57,
+            enableClickScale: true,
+            enablePointLight: true,
+            enableDrag: true,
+            iconResource: $r("sys.symbol.code_square"),
+            onButtonClick: () => {
+              router.pushUrl({ url: "pages/console"})}
           })
-          .buildEffect())
-
-
-      Column({ space: 16 }) {
-        Blank().height(80)
+        }.justifyContent(FlexAlign.SpaceBetween).width("100%")
 
         Stack() {
           HdsButton({
@@ -216,9 +209,6 @@ export struct AutoPage {
             enableClickScale: true,
             enablePointLight: true,
             enableDrag: true,
-            onButtonClick: () => {
-              this.printLog(LogType.INFO, "点击了连接状态栏");
-            }
           }) {
             Row() {
               Circle({ width: 8, height: 8 })
@@ -240,139 +230,133 @@ export struct AutoPage {
         .translate({ y: this.animStep1 ? 0 : 20 })
 
         if(this.isBoardConnected){
-          Flex({
-            direction: this.isWideScreen ? FlexDirection.Row : FlexDirection.Column,
-            space: { main: LengthMetrics.vp(16), cross: LengthMetrics.vp(16) }
-          }) {
-            Column({ space: 12 }) {
-              Row({ space: 12 }) {
-                Stack() {
-                  HdsButton({
-                    barWidth: 164,
-                    barHeight: 80,
-                    enableClickScale: true,
-                    enablePointLight: true,
-                    enableDrag: true
-                  }) {
-                    Column() {
-                      Row() {
-                        Circle({ width: 6, height: 6 }).fill('#FF7D00').margin({ right: 6 })
-                        Text('空气温度').fontSize(12).fontColor($r("sys.color.font_secondary"))
-                      }.width('100%')
-                      Blank()
-                      Text(`${this.temp} ℃`).fontSize(24).fontWeight(FontWeight.Bold).fontColor($r("sys.color.font_primary")).width('100%')
-                    }
-                    .padding({ left: 25, top: 10, bottom: 8 }).width('100%').height('100%')
+          Column({ space: 12 }) {
+            Row({ space: 12 }) {
+              Stack() {
+                HdsButton({
+                  barWidth: 164,
+                  barHeight: 80,
+                  enableClickScale: true,
+                  enablePointLight: true,
+                  enableDrag: true
+                }) {
+                  Column() {
+                    Row() {
+                      Circle({ width: 6, height: 6 }).fill('#FF7D00').margin({ right: 6 })
+                      Text('空气温度').fontSize(12).fontColor(Color.White)
+                    }.width('100%')
+                    Blank()
+                    Text(`${this.temp} ℃`).fontSize(24).fontWeight(FontWeight.Bold).fontColor(Color.White).width('100%')
                   }
-                }.layoutWeight(1)
+                  .padding({ left: 25, top: 10, bottom: 8 }).width('100%').height('100%')
+                }
+              }.layoutWeight(1)
 
-                Stack() {
-                  HdsButton({
-                    barWidth: 164,
-                    barHeight: 80,
-                    enableClickScale: true,
-                    enablePointLight: true,
-                    enableDrag: true
-                  }) {
-                    Column() {
-                      Row() {
-                        Circle({ width: 6, height: 6 }).fill('#007DFF').margin({ right: 6 })
-                        Text('空气湿度').fontSize(12).fontColor($r("sys.color.font_secondary"))
-                      }.width('100%')
-                      Blank()
-                      Text(`${this.hum} %`).fontSize(24).fontWeight(FontWeight.Bold).fontColor($r("sys.color.font_primary")).width('100%')
-                    }
-                    .padding({ left: 25, top: 10, bottom: 8 }).width('100%').height('100%')
+              Stack() {
+                HdsButton({
+                  barWidth: 164,
+                  barHeight: 80,
+                  enableClickScale: true,
+                  enablePointLight: true,
+                  enableDrag: true
+                }) {
+                  Column() {
+                    Row() {
+                      Circle({ width: 6, height: 6 }).fill('#007DFF').margin({ right: 6 })
+                      Text('空气湿度').fontSize(12).fontColor(Color.White)
+                    }.width('100%')
+                    Blank()
+                    Text(`${this.hum} %`).fontSize(24).fontWeight(FontWeight.Bold).fontColor(Color.White).width('100%')
                   }
-                }.layoutWeight(1)
-              }
-              .width('100%')
-
-              Row({ space: 12 }) {
-                Stack() {
-                  HdsButton({
-                    barWidth: 164,
-                    barHeight: 80,
-                    enableClickScale: true,
-                    enablePointLight: true,
-                    enableDrag: true
-                  }) {
-                    Column() {
-                      Row() {
-                        Circle({ width: 6, height: 6 }).fill('#FFBF00').margin({ right: 6 })
-                        Text('光照强度').fontSize(12).fontColor($r("sys.color.font_secondary"))
-                      }.width('100%')
-                      Blank()
-                      Text(`${this.intensity} Lx`).fontSize(22).fontWeight(FontWeight.Bold).fontColor($r("sys.color.font_primary")).width('100%')
-                    }
-                    .padding({ left: 25, top: 10, bottom: 8 }).width('100%').height('100%')
-                  }
-                }.layoutWeight(1)
-
-                Stack() {
-                  HdsButton({
-                    barWidth: 164,
-                    barHeight: 80,
-                    enableClickScale: true,
-                    enablePointLight: true,
-                    enableDrag: true
-                  }) {
-                    Column() {
-                      Row() {
-                        Circle({ width: 6, height: 6 }).fill('#34C759').margin({ right: 6 })
-                        Text('土壤湿度').fontSize(12).fontColor($r("sys.color.font_secondary"))
-                      }.width('100%')
-                      Blank()
-                      Text(`${this.moisture} %`).fontSize(24).fontWeight(FontWeight.Bold).fontColor($r("sys.color.font_primary")).width('100%')
-                    }
-                    .padding({ left: 25, top: 10, bottom: 8 }).width('100%').height('100%')
-                  }
-                }.layoutWeight(1)
-              }
-              .width('100%')
+                  .padding({ left: 25, top: 10, bottom: 8 }).width('100%').height('100%')
+                }
+              }.layoutWeight(1)
             }
-            .width(this.isWideScreen ? 'calc(50% - 8vp)' : '100%')
-            .opacity(this.animStep2 ? 1 : 0)
-            .translate({ y: this.animStep2 ? 0 : 20 })
-            Blank().height(40)
+            .width('100%')
 
-            Column({ space: 5 }) {
-              Text('智能模式设置')
-                .fontSize(17)
-                .fontWeight(FontWeight.Bold)
-                .width('100%')
-                .fontColor($r("sys.color.font_primary"))
+            Row({ space: 12 }) {
+              Stack() {
+                HdsButton({
+                  barWidth: 164,
+                  barHeight: 80,
+                  enableClickScale: true,
+                  enablePointLight: true,
+                  enableDrag: true
+                }) {
+                  Column() {
+                    Row() {
+                      Circle({ width: 6, height: 6 }).fill('#FFBF00').margin({ right: 6 })
+                      Text('光照强度').fontSize(12).fontColor(Color.White)
+                    }.width('100%')
+                    Blank()
+                    Text(`${this.intensity} Lx`).fontSize(22).fontWeight(FontWeight.Bold).fontColor(Color.White).width('100%')
+                  }
+                  .padding({ left: 25, top: 10, bottom: 8 }).width('100%').height('100%')
+                }
+              }.layoutWeight(1)
 
-              Column({ space: 10 }) {
-                Row({ space: 12 }) {
-                  this.hdsInputField('温度上限', () => this.zone1.autoTempMax, (v) => { this.zone1.autoTempMax = v })
-                  this.hdsInputField('空湿上限', () => this.zone1.autoHumMax, (v) => { this.zone1.autoHumMax = v })
-                }.width('100%')
-
-                Row({ space: 12 }) {
-                  this.hdsInputField('土湿下限', () => this.zone1.autoMoistureMin, (v) => { this.zone1.autoMoistureMin = v })
-                  this.hdsInputField('土湿上限', () => this.zone1.autoMoistureMax, (v) => { this.zone1.autoMoistureMax = v })
-                }.width('100%')
-
-
-                Row({ space: 12 }) {
-                  this.hdsInputField('光照下限', () => this.zone1.autoIntensityMin, (v) => { this.zone1.autoIntensityMin = v })
-                  this.hdsInputField('光照上限', () => this.zone1.autoIntensityMax, (v) => { this.zone1.autoIntensityMax = v })
-                }.width('100%')
-              }
-              .padding(10)
-              .width('100%')
-              .height('100%')
-
+              Stack() {
+                HdsButton({
+                  barWidth: 164,
+                  barHeight: 80,
+                  enableClickScale: true,
+                  enablePointLight: true,
+                  enableDrag: true
+                }) {
+                  Column() {
+                    Row() {
+                      Circle({ width: 6, height: 6 }).fill('#34C759').margin({ right: 6 })
+                      Text('土壤湿度').fontSize(12).fontColor(Color.White)
+                    }.width('100%')
+                    Blank()
+                    Text(`${this.moisture} %`).fontSize(24).fontWeight(FontWeight.Bold).fontColor(Color.White).width('100%')
+                  }
+                  .padding({ left: 25, top: 10, bottom: 8 }).width('100%').height('100%')
+                }
+              }.layoutWeight(1)
             }
-            .width(this.isWideScreen ? 'calc(50% - 8vp)' : '100%')
-            .opacity(this.animStep3 ? 1 : 0)
-            .translate({ y: this.animStep3 ? 0 : 20 })
+            .width('100%')
           }
+          .width(this.isWideScreen ? 'calc(50% - 8vp)' : '100%')
+          .opacity(this.animStep2 ? 1 : 0)
+          .translate({ y: this.animStep2 ? 0 : 20 })
+          Column({ space: 5 }) {
+            Text('智能模式设置')
+              .fontSize(17)
+              .fontWeight(FontWeight.Bold)
+              .width('100%')
+              .fontColor(Color.White)
+
+            Column({ space: 10 }) {
+              Row({ space: 12 }) {
+                this.hdsInputField('温度上限', () => this.zone1.autoTempMax, (v) => { this.zone1.autoTempMax = v })
+                this.hdsInputField('空湿上限', () => this.zone1.autoHumMax, (v) => { this.zone1.autoHumMax = v })
+              }.width('100%')
+
+              Row({ space: 12 }) {
+                this.hdsInputField('土湿下限', () => this.zone1.autoMoistureMin, (v) => { this.zone1.autoMoistureMin = v })
+                this.hdsInputField('土湿上限', () => this.zone1.autoMoistureMax, (v) => { this.zone1.autoMoistureMax = v })
+              }.width('100%')
+
+
+              Row({ space: 12 }) {
+                this.hdsInputField('光照下限', () => this.zone1.autoIntensityMin, (v) => { this.zone1.autoIntensityMin = v })
+                this.hdsInputField('光照上限', () => this.zone1.autoIntensityMax, (v) => { this.zone1.autoIntensityMax = v })
+              }.width('100%')
+            }
+            .padding(10)
+            .width('100%')
+            .height('100%')
+
+          }
+          .width(this.isWideScreen ? 'calc(50% - 8vp)' : '100%')
+          .opacity(this.animStep3 ? 1 : 0)
+          .translate({ y: this.animStep3 ? 0 : 20 })
+
         } else {
           Column({ space: 12 }) {
-            LoadingProgress().width(80).height(80) .color($r("sys.color.font_secondary"))
-            Text('等待建立通信...').fontSize(18).fontWeight(FontWeight.Bold) .fontColor($r("sys.color.font_secondary")).margin({ top: 20 })
+            LoadingProgress().width(80).height(80) .color(Color.White)
+            Text('等待建立通信...').fontSize(18).fontWeight(FontWeight.Bold) .fontColor(Color.White).margin({ top: 20 })
           }
           .opacity(this.animStep1 ? 1 : 0)
           .translate({ y: this.animStep1 ? 0 : 20 })
@@ -380,26 +364,15 @@ export struct AutoPage {
           .justifyContent(FlexAlign.Center)
         }
       }
+      .width("100%")
       .height("100%")
       .padding({ left: 16, right: 16, top: 75, bottom: 32 })
     }
-    .onAreaChange((oldValue: Area, newValue: Area) => {
-      let currentWidth = newValue.width as number;
-      let newWideState = currentWidth >= 600;
-
-      if (this.isWideScreen !== newWideState) {
-        animateTo({
-          duration: 400,
-          curve: Curve.FastOutSlowIn
-        }, () => {
-          this.isWideScreen = newWideState;
-        });
-      }
-    })
     .onVisibleAreaChange([0.0], (isVisible: boolean, currentRatio: number) => {
       this.handleAutoPageVisibility(isVisible && currentRatio > 0);
     })
-    .backgroundColor($r("app.color.backcolor"))
+    .width("100%")
+    .height("100%")
     .ignoreLayoutSafeArea()
   }
 
@@ -408,7 +381,7 @@ export struct AutoPage {
     Stack() {
       HdsButton({
         barWidth: 164,
-        barHeight: 50,
+        barHeight: 60,
         enablePointLight: true,
         enableClickScale: true,
         enableDrag: true
@@ -417,14 +390,14 @@ export struct AutoPage {
           Text(label)
             .fontSize(13)
             .width(60)
-            .fontColor($r("sys.color.font_secondary"))
+            .fontColor(Color.White)
             .margin({ right: 2 })
           TextInput({ text: getter() })
             .fontSize(11)
             .height(28)
             .layoutWeight(1)
             .padding({ left: 6, right: 6 })
-            .fontColor("#444444")
+            .fontColor("#222222")
             .backgroundColor(this.autoEnabled ? this.transparentDiffColor : $r("app.color.diff_background"))
             .borderRadius(16)
             .type(InputType.Number)

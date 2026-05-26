@@ -13,7 +13,7 @@ export struct HdsButton {
 
   @Prop iconResource: Resource | undefined = undefined;
   @Prop iconSize: number = 24;
-  @Prop iconColor: ResourceColor[] = [Color.Gray];
+  @Prop iconColor: ResourceColor[] = [Color.White, Color.Black];
 
   @Prop maskColor: ResourceColor = Color.Transparent
   @Prop barBottomMargin: number = 0;
