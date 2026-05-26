@@ -4,19 +4,61 @@ import { vibration } from '../service/vibration';
 import { LogMessage, LogType } from '../viewmodel/ConsoleBean';
 import { hdsEffect } from '@kit.UIDesignKit';
 
+class LogDataSource implements IDataSource {
+  private listeners: DataChangeListener[] = [];
+  private logList: LogMessage[] = [];
+
+  totalCount(): number {
+    return this.logList.length;
+  }
+
+  getData(index: number): LogMessage {
+    return this.logList[index];
+  }
+
+  registerDataChangeListener(listener: DataChangeListener): void {
+    if (this.listeners.indexOf(listener) < 0) {
+      this.listeners.push(listener);
+    }
+  }
+
+  unregisterDataChangeListener(listener: DataChangeListener): void {
+    const pos = this.listeners.indexOf(listener);
+    if (pos >= 0) {
+      this.listeners.splice(pos, 1);
+    }
+  }
+
+  public reloadData(newList: LogMessage[]): void {
+    this.logList = newList;
+    this.notifyDataReload();
+  }
+
+  private notifyDataReload(): void {
+    this.listeners.forEach(listener => {
+      listener.onDataReloaded();
+    });
+  }
+}
+
 @Component
 export struct consolePage {
   onCloseSplit?: () => void;
   private scroller: Scroller = new Scroller();
-  @StorageLink("transparentColor")transparentColor: ResourceColor = $r("sys.color.ohos_toggle_bg_transparent")
-  @StorageLink("transparentBorderColor")transparentBorderColor: ResourceColor = $r("sys.color.toast_border_color")
+  @StorageLink("transparentColor") transparentColor: ResourceColor = $r("sys.color.ohos_toggle_bg_transparent")
+  @StorageLink("transparentBorderColor") transparentBorderColor: ResourceColor = $r("sys.color.toast_border_color")
   @StorageLink("isWideScreen") isWideScreen: boolean = true;
   @StorageLink("vibrationON") vibrationON: boolean = true;
   @Consume('pageStack') pageStack: NavPathStack;
   @State controller: hdsEffect.ShaderEffectController = new hdsEffect.ShaderEffectController();
   @State animStep1: number = 0;
   private timer1: number = -1;
+
+  // 保持状态同步，通过 Watch 监听数据变化
   @State @Watch('onLogListChange') logList: LogMessage[] = [];
+  // 实例化懒加载数据源
+  private dataSource: LogDataSource = new LogDataSource();
+
   @StorageLink('autoEnabled') autoEnabled: boolean = false;
   private isAtBottom: boolean = true;
 
@@ -31,13 +73,18 @@ export struct consolePage {
     if (this.timer1 !== -1) { clearTimeout(this.timer1); this.timer1 = -1; }
     this.animStep1 = 0;
   }
+
   onLogListChange() {
+    // 当组件内的 logList 更新时，同步刷新懒加载数据源
+    this.dataSource.reloadData(this.logList);
+
     if (this.isAtBottom) {
       setTimeout(() => {
         this.scroller.scrollEdge(Edge.Bottom);
       }, 50);
     }
   }
+
   private getTypeColor(type: LogType): Color | string {
     switch (type) {
       case LogType.SEND:
@@ -74,6 +121,7 @@ export struct consolePage {
 
   aboutToAppear(): void {
     this.startEnterAnimation();
+    this.dataSource.reloadData(this.logList);
   }
   aboutToDisappear(): void {
     this.stopEnterAnimation();
@@ -86,30 +134,29 @@ export struct consolePage {
   build() {
     HdsNavDestination() {
       Stack(){
-
-          Column()
-            .opacity(this.animStep1 ? 1 : 0)
-            .visibility(this.autoEnabled ? Visibility.Visible : Visibility.None)
-            .width("100%").height("100%")
-            .visualEffect(new hdsEffect.HdsEffectBuilder()
-              .shaderEffect({
-                effectType: hdsEffect.EffectType.UV_BACKGROUND_FLOW_LIGHT,
-                animation: {
-                  duration: 10000,
-                  iterations: -1,
-                  autoPlay: true,
-                  onFinish: ()=> {
-                    console.info('Succeeded in finishing');
-                  }
-                },
-                controller: this.controller
-              })
-              .buildEffect())
+        Column()
+          .opacity(this.animStep1 ? 1 : 0)
+          .visibility(this.autoEnabled ? Visibility.Visible : Visibility.None)
+          .width("100%").height("100%")
+          .visualEffect(new hdsEffect.HdsEffectBuilder()
+            .shaderEffect({
+              effectType: hdsEffect.EffectType.UV_BACKGROUND_FLOW_LIGHT,
+              animation: {
+                duration: 10000,
+                iterations: -1,
+                autoPlay: true,
+                onFinish: ()=> {
+                  console.info('Succeeded in finishing');
+                }
+              },
+              controller: this.controller
+            })
+            .buildEffect())
 
         Column() {
           Blank().height(100)
           List({ scroller: this.scroller }) {
-            ForEach(this.logList, (item: LogMessage) => {
+            LazyForEach(this.dataSource, (item: LogMessage) => {
               ListItem() {
                 Row({ space: 5 }) {
                   Text(`[${this.getTime(item.time)}]`)
@@ -128,15 +175,19 @@ export struct consolePage {
                     .fontSize(12)
                     .textOverflow({ overflow: TextOverflow.Ellipsis })
                     .layoutWeight(1)
-                } .visualEffect(new hdsEffect.HdsEffectBuilder().pointLight({
+                }
+                .visualEffect(new hdsEffect.HdsEffectBuilder().pointLight({
                   illuminatedType: hdsEffect.PointLightIlluminatedType.CONTENT,
                 }).buildEffect())
                 .width("100%")
                 .align(Alignment.Start)
               }
               .borderRadius(16)
+            }, (item: LogMessage, index: number) => {
+              return `${item.time}_${index}_${item.content.length}`;
             })
           }
+          .cachedCount(5)
           .onReachEnd(() => {
             this.isAtBottom = true;
           })
@@ -147,7 +198,7 @@ export struct consolePage {
             return { offsetRemain: offset };
           })
           .onScrollIndex((end: number) => {
-            if (end >= this.logList.length - 4) {
+            if (end >= this.dataSource.totalCount() - 4) {
               this.isAtBottom = true;
             } else {
               this.isAtBottom = false;
