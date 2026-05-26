@@ -1,6 +1,5 @@
 {
   "routerMap": [
-
     {
       "name": "ConsolePage",
       "pageSourceFile": "src/main/ets/pages/console.ets",

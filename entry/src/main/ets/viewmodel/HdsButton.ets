@@ -4,29 +4,17 @@ import { ConfigurationConstant } from '@kit.AbilityKit';
 import { curves } from '@kit.ArkUI';
 import { hdsEffect } from '@kit.UIDesignKit';
 
-/**
- * HdsButton 浮动迷你栏按钮组件
- * 基于 HdsTabs 的沉浸光感浮动按钮
- * 架构对齐便单 ThemeButton(showHdsButton=true)：
- *   - offset/scale/visualEffect 在最外层 Stack
- *   - HdsTabs 背景用 onAreaChange 动态测尺寸 + clip(true) 防止材质出圈
- *   - 内容层独立，完全自主居中
- *   - 手势 overlay 透传层
- */
 @Component
 export struct HdsButton {
-  // ==================== 尺寸参数 ====================
   @Prop barWidth: number = 50;
   @Prop barHeight: number = 50;
   @Prop contentPadding: number = 8;
   @Prop containerSize: SizeOptions | undefined = undefined;
 
-  // ==================== 图标与内容 ====================
   @Prop iconResource: Resource | undefined = undefined;
   @Prop iconSize: number = 24;
   @Prop iconColor: ResourceColor[] = [Color.Gray];
 
-  // ==================== 材质与样式 ====================
   @Prop maskColor: ResourceColor = Color.Transparent
   @Prop barBottomMargin: number = 0;
   @Prop barPosition: BarPosition = BarPosition.End;
@@ -34,28 +22,23 @@ export struct HdsButton {
   @StorageLink('activeThemeId') activeThemeId: string = 'default';
   @Prop justifyContent: FlexAlign = FlexAlign.Center;
 
-  // ==================== 动态特性控制 (三大效果) ====================
-  @Prop enableDrag: boolean = false;         // 效果 1：是否开启拖拽拉伸效果
-  @Prop enableClickScale: boolean = false;   // 效果 2：是否开启点按放大效果
-  @Prop enablePointLight: boolean = false;   // 效果 3：是否开启交互点光源
+  @Prop enableDrag: boolean = false;
+  @Prop enableClickScale: boolean = false;
+  @Prop enablePointLight: boolean = false;
 
   @StorageLink('isHdsTabsEnabled') isHdsTabsEnabled: boolean = true;
   @StorageLink('currentColorMode') currentColorMode: number = ConfigurationConstant.ColorMode.COLOR_MODE_DARK;
 
-  // ==================== 交互状态 ====================
   @State isLight: boolean = false;
   @State isTouched: boolean = false;
   @State offsetX: number = 0;
   @State offsetY: number = 0;
 
-  // ==================== 动态尺寸 (便单 onAreaChange 方案) ====================
   @State thisWidth: number = 0;
   @State thisHeight: number = 0;
 
-  // ==================== 事件回调 ====================
   public onButtonClick: (() => void) | undefined = undefined;
 
-  // ==================== 自定义内容槽位 ====================
   @Builder
   defaultButtonBuilder() {
     if (this.iconResource) {
@@ -72,8 +55,6 @@ export struct HdsButton {
 
   build() {
     Stack() {
-      // 1. 背景材质层
-      //    便单：ButtonHdsBackground 内部用 onAreaChange + clip(true) 确保材质不出圈
       Stack() {
         if (this.isHdsTabsEnabled && deviceInfo.distributionOSApiVersion >= 60100) {
           HdsTabs({
@@ -197,7 +178,6 @@ export struct HdsButton {
     .height(this.barHeight - 12)
     .borderRadius((this.barHeight < this.barWidth) ? (this.barHeight - 12) / 2 : this.barWidth / 2)
     .clip(false)
-    // 便单：offset / scale / visualEffect 全部在最外层 Stack
     .offset({
       x: this.enableDrag ? this.offsetX / 30 : 0,
       y: this.enableDrag ? this.offsetY / 30 : 0
@@ -210,13 +190,11 @@ export struct HdsButton {
     })
     .shadow(this.isHdsTabsEnabled ?ShadowStyle.OUTER_FLOATING_SM:undefined)
     .visualEffect(this.enablePointLight ? (this.isHdsTabsEnabled ?
-      // 启用 HdsTabs 时使用与便单一致的静态羽化边缘光
       new hdsEffect.HdsEffectBuilder()
         .pointLight({
           illuminatedType: hdsEffect.PointLightIlluminatedType.BORDER_CONTENT,
         })
         .buildEffect() :
-      // 未启用 HdsTabs 时使用自定义交互点光源
       new hdsEffect.HdsEffectBuilder()
         .pointLight({
           illuminatedType: this.isLight ? hdsEffect.PointLightIlluminatedType.BORDER_CONTENT : hdsEffect.PointLightIlluminatedType.BORDER_CONTENT,

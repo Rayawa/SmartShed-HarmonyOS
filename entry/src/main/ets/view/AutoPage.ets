@@ -5,7 +5,7 @@ import { curves, display, LengthMetrics, promptAction } from '@kit.ArkUI';
 import { hdsEffect } from '@kit.UIDesignKit';
 import { LogType } from '../viewmodel/ConsoleBean';
 import { GlobalLogBus } from '../pages/Index';
-import { HdsButton } from '../viewmodel/HdsButton'; // 🌟 引入 HdsButton 进行无缝替换
+import { HdsButton } from '../viewmodel/HdsButton';
 
 
 @Component
@@ -209,7 +209,6 @@ export struct AutoPage {
       Column({ space: 16 }) {
         Blank().height(80)
 
-        // ==================== 1. 连接状态栏 ====================
         Stack() {
           HdsButton({
             barWidth: 336,
@@ -240,17 +239,13 @@ export struct AutoPage {
         .opacity(this.animStep1 ? 1 : 0)
         .translate({ y: this.animStep1 ? 0 : 20 })
 
-        // 🌟 完全保留原有的取反断开逻辑
         if(this.isBoardConnected){
           Flex({
             direction: this.isWideScreen ? FlexDirection.Row : FlexDirection.Column,
             space: { main: LengthMetrics.vp(16), cross: LengthMetrics.vp(16) }
           }) {
-            // ==================== 2. 环境监测数据区域（4个独立材质卡片） ====================
             Column({ space: 12 }) {
-              // 第一排：空气温度 & 空气湿度
               Row({ space: 12 }) {
-                // 空气温度
                 Stack() {
                   HdsButton({
                     barWidth: 164,
@@ -271,7 +266,6 @@ export struct AutoPage {
                   }
                 }.layoutWeight(1)
 
-                // 空气湿度
                 Stack() {
                   HdsButton({
                     barWidth: 164,
@@ -294,9 +288,7 @@ export struct AutoPage {
               }
               .width('100%')
 
-              // 第二排：光照强度 & 土壤湿度
               Row({ space: 12 }) {
-                // 光照强度
                 Stack() {
                   HdsButton({
                     barWidth: 164,
@@ -317,7 +309,6 @@ export struct AutoPage {
                   }
                 }.layoutWeight(1)
 
-                // 土壤湿度
                 Stack() {
                   HdsButton({
                     barWidth: 164,
@@ -343,44 +334,36 @@ export struct AutoPage {
             .width(this.isWideScreen ? 'calc(50% - 8vp)' : '100%')
             .opacity(this.animStep2 ? 1 : 0)
             .translate({ y: this.animStep2 ? 0 : 20 })
+            Blank().height(40)
 
-            // ==================== 2. 智能模式设置面板替换 ====================
-            Column({ space: 12 }) {
+            Column({ space: 5 }) {
               Text('智能模式设置')
                 .fontSize(17)
                 .fontWeight(FontWeight.Bold)
                 .width('100%')
-                .fontColor("#444444")
-                .margin({ bottom: 4 })
+                .fontColor($r("sys.color.font_primary"))
 
-              Stack() {
-                HdsButton({
-                  barWidth: 336,
-                  barHeight: 140, // 严丝合缝包裹内部三组 Row 阈值设定组件
-                  enablePointLight: true,
-                  enableClickScale: false // 输入框承载卡片，保持静止不进行整包缩放
-                }) {
-                  Column({ space: 10 }) {
-                    Row({ space: 10 }) {
-                      this.inputField('温度上限', () => this.zone1.autoTempMax, (v) => { this.zone1.autoTempMax = v })
-                      this.inputField('空湿上限', () => this.zone1.autoHumMax, (v) => { this.zone1.autoHumMax = v })
-                    }.width('100%')
+              Column({ space: 10 }) {
+                Row({ space: 12 }) {
+                  this.hdsInputField('温度上限', () => this.zone1.autoTempMax, (v) => { this.zone1.autoTempMax = v })
+                  this.hdsInputField('空湿上限', () => this.zone1.autoHumMax, (v) => { this.zone1.autoHumMax = v })
+                }.width('100%')
 
-                    Row({ space: 10 }) {
-                      this.inputField('土湿下限', () => this.zone1.autoMoistureMin, (v) => { this.zone1.autoMoistureMin = v })
-                      this.inputField('土湿上限', () => this.zone1.autoMoistureMax, (v) => { this.zone1.autoMoistureMax = v })
-                    }.width('100%')
+                Row({ space: 12 }) {
+                  this.hdsInputField('土湿下限', () => this.zone1.autoMoistureMin, (v) => { this.zone1.autoMoistureMin = v })
+                  this.hdsInputField('土湿上限', () => this.zone1.autoMoistureMax, (v) => { this.zone1.autoMoistureMax = v })
+                }.width('100%')
 
-                    Row({ space: 10 }) {
-                      this.inputField('光照下限', () => this.zone1.autoIntensityMin, (v) => { this.zone1.autoIntensityMin = v })
-                      this.inputField('光照上限', () => this.zone1.autoIntensityMax, (v) => { this.zone1.autoIntensityMax = v })
-                    }.width('100%')
-                  }
-                  .padding(10)
-                  .width('100%')
-                  .height('100%')
-                }
-              }.width('100%')
+
+                Row({ space: 12 }) {
+                  this.hdsInputField('光照下限', () => this.zone1.autoIntensityMin, (v) => { this.zone1.autoIntensityMin = v })
+                  this.hdsInputField('光照上限', () => this.zone1.autoIntensityMax, (v) => { this.zone1.autoIntensityMax = v })
+                }.width('100%')
+              }
+              .padding(10)
+              .width('100%')
+              .height('100%')
+
             }
             .width(this.isWideScreen ? 'calc(50% - 8vp)' : '100%')
             .opacity(this.animStep3 ? 1 : 0)
@@ -388,8 +371,8 @@ export struct AutoPage {
           }
         } else {
           Column({ space: 12 }) {
-            LoadingProgress().width(80).height(80).color("#444444")
-            Text('等待建立通信...').fontSize(18).fontWeight(FontWeight.Bold).fontColor("#444444").margin({ top: 20 })
+            LoadingProgress().width(80).height(80) .color($r("sys.color.font_secondary"))
+            Text('等待建立通信...').fontSize(18).fontWeight(FontWeight.Bold) .fontColor($r("sys.color.font_secondary")).margin({ top: 20 })
           }
           .opacity(this.animStep1 ? 1 : 0)
           .translate({ y: this.animStep1 ? 0 : 20 })
@@ -420,28 +403,41 @@ export struct AutoPage {
     .ignoreLayoutSafeArea()
   }
 
-  // 🌟 完全原汁原味的原版输入组件逻辑与样式
   @Builder
-  inputField(label: string, getter: () => string, setter: (val: string) => void) {
-    Row() {
-      Text(label)
-        .fontSize(13)
-        .width(60)
-        .fontColor("#444444")
-        .margin({ right: 5 })
-      TextInput({ text: getter() })
-        .fontSize(11)
-        .height(28)
-        .width(65)
-        .padding({ left: 6, right: 6 })
-        .fontColor("#DDDDDD")
-        .backgroundColor(this.autoEnabled ? this.transparentDiffColor : $r("app.color.diff_background"))
-        .borderRadius(6)
-        .type(InputType.Number)
-        .onChange((val: string) => {
-          setter(val);
-          this.printLog(LogType.INFO, `用户修改自动阈值 [${label}] 为: ${val}`);
-        })
+  hdsInputField(label: string, getter: () => string, setter: (val: string) => void) {
+    Stack() {
+      HdsButton({
+        barWidth: 164,
+        barHeight: 50,
+        enablePointLight: true,
+        enableClickScale: true,
+        enableDrag: true
+      }) {
+        Row() {
+          Text(label)
+            .fontSize(13)
+            .width(60)
+            .fontColor($r("sys.color.font_secondary"))
+            .margin({ right: 2 })
+          TextInput({ text: getter() })
+            .fontSize(11)
+            .height(28)
+            .layoutWeight(1)
+            .padding({ left: 6, right: 6 })
+            .fontColor("#444444")
+            .backgroundColor(this.autoEnabled ? this.transparentDiffColor : $r("app.color.diff_background"))
+            .borderRadius(16)
+            .type(InputType.Number)
+            .onChange((val: string) => {
+              setter(val);
+              this.printLog(LogType.INFO, `用户修改自动阈值 [${label}] 为: ${val}`);
+            })
+        }
+        .padding({ left: 12, right: 12 })
+        .width('100%')
+        .height('100%')
+        .alignItems(VerticalAlign.Center)
+      }
     }
     .layoutWeight(1)
   }
