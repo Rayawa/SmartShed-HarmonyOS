@@ -156,7 +156,7 @@ export struct ManualPage {
   build() {
     Column({ space: 16 }) {
       Blank().height(80)
-      Row({ space: 5 }) {
+      Row({ space: 16 }) {
         Row(){
           Circle({ width: 8, height: 8 })
             .fill(this.isBoardRgbConnected ? $r("app.color.green_dark") : $r("app.color.red_dark"))
@@ -165,6 +165,7 @@ export struct ManualPage {
             .fontSize(14)
             .fontColor(this.isBoardRgbConnected ? $r("app.color.green_dark") : $r("app.color.red_dark"))
         }
+        .layoutWeight(1)
         .shadow({
           radius: 8,
           color: "#1a000000",
@@ -215,6 +216,7 @@ export struct ManualPage {
           offsetX: 0,
           offsetY: 2,
         })
+        .layoutWeight(1)
         .visualEffect(new hdsEffect.HdsEffectBuilder()
           .pressShadow(this.button_gradient_state)
           .pointLight({
@@ -275,7 +277,7 @@ export struct ManualPage {
         }
       })
       .justifyContent(FlexAlign.SpaceBetween)
-      .width(this.isWideScreen ? 'calc(50% - 8vp)' : '100%')
+      .width('100%')
       .padding(10)
       .borderWidth(1).borderColor($r("app.color.border"))
       .backgroundColor($r("app.color.background"))
@@ -477,7 +479,7 @@ export struct ManualPage {
           .layoutWeight(1)
           .width('100%')
         }
-        .width(this.isWideScreen ? 'calc(50% - 8vp)' : '100%')
+        .width('100%')
         .height(160)
         .opacity(this.animStep2 ? 1 : 0)
         .translate({ y: this.animStep2 ? 0 : 20 })
@@ -687,7 +689,7 @@ export struct ManualPage {
             this.isPressedControl = false;
           }
         })
-        .width(this.isWideScreen ? 'calc(50% - 8vp)' : '100%')
+        .width('100%')
         .padding(10)
         .borderWidth(1).borderColor($r("app.color.border"))
         .backgroundColor($r("app.color.background"))
