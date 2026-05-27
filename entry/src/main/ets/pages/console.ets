@@ -171,7 +171,6 @@ export struct consolePage {
                     .fontColor(this.autoEnabled? "#444444" : "#666666")
                     .flexShrink(0)
 
-                  // 逻辑修正：只保留单次标签渲染，删除了下面多余的重复 Text
                   Text(`[${this.getTypeLabel(item.type)}]`)
                     .fontColor(this.getTypeColor(item.type))
                     .fontSize(12)

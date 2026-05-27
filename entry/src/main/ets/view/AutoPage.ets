@@ -247,7 +247,7 @@ export struct AutoPage {
 
       Column({ space: 16 }) {
         Blank().height(80)
-        Row({ space: 5 }) {
+        Row({ space: 16 }) {
           Row(){
             Circle({ width: 8, height: 8 })
               .fill(this.isBoardRgbConnected ? "#ff287328" : "#FF3B30")
@@ -256,6 +256,7 @@ export struct AutoPage {
               .fontSize(14)
               .fontColor(this.isBoardRgbConnected ? "#ff287328" : "#FF3B30")
           }
+          .layoutWeight(1)
           .shadow({
             radius: 8,
             color: "#1a000000",
@@ -300,6 +301,7 @@ export struct AutoPage {
               .fontSize(14)
               .fontColor(this.isBoardSoiConnected ? "#ff287328" : "#FF3B30")
           }
+          .layoutWeight(1)
           .shadow({
             radius: 8,
             color: "#1a000000",
@@ -366,7 +368,7 @@ export struct AutoPage {
           }
         })
         .justifyContent(FlexAlign.SpaceBetween)
-        .width(this.isWideScreen ? 'calc(50% - 8vp)' : '100%')
+        .width('100%')
         .padding(10)
         .borderWidth(1)
         .borderColor(this.transparentBorderColor)
@@ -596,7 +598,7 @@ export struct AutoPage {
             .layoutWeight(1)
             .width('100%')
           }
-          .width(this.isWideScreen ? 'calc(50% - 8vp)' : '100%')
+          .width('100%')
           .height(160)
           .opacity(this.animStep2 ? 1 : 0)
           .translate({ y: this.animStep2 ? 0 : 20 })
@@ -670,7 +672,7 @@ export struct AutoPage {
               this.isPressedControl = false;
             }
           })
-          .width(this.isWideScreen ? 'calc(50% - 8vp)' : '100%')
+          .width('100%')
           .padding(10)
           .borderWidth(1).borderColor(this.autoEnabled ? this.transparentBorderColor : $r("app.color.border"))
           .backgroundColor(this.autoEnabled ? this.transparentColor : $r("app.color.background"))
