@@ -27,7 +27,10 @@ export class GlobalLogBus {
   }
 }
 
-AppStorage.setOrCreate('isBoardConnected', false);
+// ==================== 1. 同步全局 AppStorage 初始化数据 ====================
+AppStorage.setOrCreate('isBoardRgbConnected', false);
+AppStorage.setOrCreate('isBoardSoiConnected', false);
+AppStorage.setOrCreate('autoEnabled', false);
 AppStorage.setOrCreate('autoEnabled', false);
 AppStorage.setOrCreate('temp', 28);
 AppStorage.setOrCreate('hum', 50);
@@ -47,7 +50,9 @@ struct Index {
   @State navBarWidth: string | number = '100%';
   @StorageLink("isWideScreen") isWideScreen: boolean = true;
 
-  @StorageLink('isBoardConnected') isBoardConnected: boolean = false;
+  // 接收外部传入与同步的板子连接状态
+  @StorageLink('isBoardRgbConnected') isBoardRgbConnected: boolean = false;
+  @StorageLink('isBoardSoiConnected') isBoardSoiConnected: boolean = false;
   @StorageLink('autoEnabled') autoEnabled: boolean = false;
   @StorageLink('temp') temp: number = 28;
   @StorageLink('hum') hum: number = 50;
@@ -95,7 +100,9 @@ struct Index {
       this.mqttClient.onStart();
     } catch (error) {
       console.error(`[App] 初始化失败: ${JSON.stringify(error)}`);
-      this.isBoardConnected = false;
+      // ==================== 2. 同步重置两块板子的连接状态 ====================
+      this.isBoardRgbConnected = false;
+      this.isBoardSoiConnected = false;
       promptAction.showToast({ message: '板端通讯组件初始化失败', duration: 3000 });
     }
     if(this.isWideScreen) { this.toggleSplitMode(true); this.pageStack.pushPathByName("ConsolePage", null);}
@@ -124,36 +131,54 @@ struct Index {
       return true;
     }
   }
+
+  // ==================== 3. 核心修改：重新适配多板控制的数据路由分发 ====================
   private onMqttMessage(topic: string, payload: string): void {
     console.info(`[App] MQTT收到 -> Topic: ${topic}, Payload: ${payload}`);
 
     try {
       const data: SensorData = JSON.parse(payload);
 
-      this.isBoardConnected = true;
+      switch (topic) {
+        // --- RGB 开发板数据解析 ---
+        case 'Rayawa/rgb/light_intensity':
+          this.isBoardRgbConnected = true;
+          if (data.intensity !== undefined) {
+            const val = Number(data.intensity);
+            this.intensity = val;
+            this.zone1.bean.intensity = val;
+          }
+          break;
 
-      if (topic === 'Rayawa/light_intensity_1' && data.intensity !== undefined) {
-        const val = Number(data.intensity);
-        this.intensity = val;
-        this.zone1.bean.intensity = val;
+        case 'Rayawa/rgb/temp_and_hum':
+          this.isBoardRgbConnected = true;
+          if (data.temp !== undefined) {
+            const tVal = Number(data.temp);
+            this.temp = tVal;
+            this.zone1.bean.temp = tVal;
+          }
+          if (data.hum !== undefined) {
+            const hVal = Number(data.hum);
+            this.hum = hVal;
+            this.zone1.bean.hum = hVal;
+          }
+          break;
+
+        // --- SOI 开发板数据解析 ---
+        case 'Rayawa/soi/soil_moisture':
+          this.isBoardSoiConnected = true;
+          if (data.moisture !== undefined) {
+            const val = Number(data.moisture);
+            this.moisture = val;
+            this.zone1.bean.moisture = val;
+          }
+          break;
+
+        default:
+          console.warn(`[App] 未知或无需直接解析的 Topic: ${topic}`);
+          break;
       }
-      else if (topic === 'Rayawa/soil_moisture_1' && data.moisture !== undefined) {
-        const val = Number(data.moisture);
-        this.moisture = val;
-        this.zone1.bean.moisture = val;
-      }
-      else if (topic === 'Rayawa/temp_and_hum_1') {
-        if (data.temp !== undefined) {
-          const tVal = Number(data.temp);
-          this.temp = tVal;
-          this.zone1.bean.temp = tVal;
-        }
-        if (data.hum !== undefined) {
-          const hVal = Number(data.hum);
-          this.hum = hVal;
-          this.zone1.bean.hum = hVal;
-        }
-      }
+
     } catch (e) {
       console.error(`[App] JSON解析失败: ${JSON.stringify(e)}`);
     }

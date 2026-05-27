@@ -1,3 +1,4 @@
+// src/main/ets/view/consolePage.ets
 import { hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit';
 import { curves, LengthMetrics } from '@kit.ArkUI';
 import { vibration } from '../service/vibration';
@@ -54,9 +55,7 @@ export struct consolePage {
   @State animStep1: number = 0;
   private timer1: number = -1;
 
-  // 保持状态同步，通过 Watch 监听数据变化
   @State @Watch('onLogListChange') logList: LogMessage[] = [];
-  // 实例化懒加载数据源
   private dataSource: LogDataSource = new LogDataSource();
 
   @StorageLink('autoEnabled') autoEnabled: boolean = false;
@@ -75,7 +74,6 @@ export struct consolePage {
   }
 
   onLogListChange() {
-    // 当组件内的 logList 更新时，同步刷新懒加载数据源
     this.dataSource.reloadData(this.logList);
 
     if (this.isAtBottom) {
@@ -98,6 +96,15 @@ export struct consolePage {
       default:
         return this.autoEnabled? "#111111" : '#333333';
     }
+  }
+
+  private getLogContent(content: string): string {
+    if (content.includes('Rayawa/rgb/') || content.includes('RGB开发板')) {
+      return '[RGB]' + content;
+    } else if (content.includes('Rayawa/soi/') || content.includes('SOI开发板')) {
+      return '[SOI]' + content;
+    }
+    return content;
   }
 
   private getTypeLabel(type: LogType): string {
@@ -164,13 +171,14 @@ export struct consolePage {
                     .fontColor(this.autoEnabled? "#444444" : "#666666")
                     .flexShrink(0)
 
+                  // 逻辑修正：只保留单次标签渲染，删除了下面多余的重复 Text
                   Text(`[${this.getTypeLabel(item.type)}]`)
                     .fontColor(this.getTypeColor(item.type))
                     .fontSize(12)
                     .fontWeight(FontWeight.Bold)
                     .flexShrink(0)
 
-                  Text(item.content)
+                  Text(this.getLogContent(item.content))
                     .fontColor(this.getTypeColor(item.type))
                     .fontSize(12)
                     .textOverflow({ overflow: TextOverflow.Ellipsis })
