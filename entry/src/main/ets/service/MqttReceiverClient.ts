@@ -63,11 +63,10 @@ export class MqttReceiverClient {
   }
 
   private generateClientId(): string {
+    const randomNum = Math.floor(1000 + Math.random() * 9000);
     const timestamp = '' + Date.now();
-    let clientId = MQTT_CLIENT_ID + timestamp;
-    if (clientId.length > MAX_MQTT_CLIENTID_LENGTH) {
-      clientId = clientId.substring(0, MAX_MQTT_CLIENTID_LENGTH);
-    }
+
+    let clientId = `Pad_${timestamp.slice(-10)}_${randomNum}`;
     return clientId;
   }
 

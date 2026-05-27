@@ -1,6 +1,7 @@
 // src/main/ets/pages/Index.ets
 import { SensorData, ZoneData } from '../viewmodel/SmartShedBean';
-import { LogType, MqttReceiverClient } from '../service/MqttReceiverClient';
+// 顺便把新的全局常量引入进来，如果后面界面有需要可以直接用
+import { LogType, MqttReceiverClient, TOPIC_LED, TOPIC_FAN, TOPIC_WATER_PUMP } from '../service/MqttReceiverClient';
 import { HdsTabs } from '@hms.hds.hdsBaseComponent';
 import { promptAction } from '@kit.ArkUI';
 import { BlurStrategy, hdsMaterial, HdsTabsController } from '@kit.UIDesignKit';
@@ -26,7 +27,9 @@ export class GlobalLogBus {
   }
 }
 
-AppStorage.setOrCreate('isBoardConnected', false);
+// ==================== 1. 全局状态初始化变量名对齐 ====================
+AppStorage.setOrCreate('isRgbBoardConnected', false);
+AppStorage.setOrCreate('isSoiBoardConnected', false);
 AppStorage.setOrCreate('autoEnabled', false);
 AppStorage.setOrCreate('temp', 28);
 AppStorage.setOrCreate('hum', 50);
@@ -43,7 +46,9 @@ struct Index {
   private TabBarController: HdsTabsController = new HdsTabsController();
   @StorageLink("vibrationON") vibrationON: boolean = true;
 
-  @StorageLink('isBoardConnected') isBoardConnected: boolean = false;
+  // ==================== 2. 双板状态双向同步绑定 ====================
+  @StorageLink('isRgbBoardConnected') isRgbBoardConnected: boolean = false;
+  @StorageLink('isSoiBoardConnected') isSoiBoardConnected: boolean = false;
   @StorageLink('autoEnabled') autoEnabled: boolean = false;
   @StorageLink('temp') temp: number = 28;
   @StorageLink('hum') hum: number = 50;
@@ -82,7 +87,8 @@ struct Index {
       this.mqttClient.onStart();
     } catch (error) {
       console.error(`[App] 初始化失败: ${JSON.stringify(error)}`);
-      this.isBoardConnected = false;
+      this.isRgbBoardConnected = false;
+      this.isSoiBoardConnected = false;
       promptAction.showToast({ message: '板端通讯组件初始化失败', duration: 3000 });
     }
   }
@@ -99,26 +105,23 @@ struct Index {
     }
   }
 
-
+  // ==================== 3. 核心修改：双板多主题数据分流解析 ====================
   private onMqttMessage(topic: string, payload: string): void {
     console.info(`[App] MQTT收到 -> Topic: ${topic}, Payload: ${payload}`);
 
     try {
       const data: SensorData = JSON.parse(payload);
 
-      this.isBoardConnected = true;
+      // 【注意】删除了原先的 this.isBoardRGBConnected = false 等覆盖状态的代码，
+      // 在线与否完全交给 MqttReceiverClient 里的 BoardOfflineWatcher 守护进程来判断。
 
-      if (topic === 'Rayawa/light_intensity_1' && data.intensity !== undefined) {
+      // --- RGB 板相关数据解析 ---
+      if (topic === 'Rayawa/rgb/light_intensity' && data.intensity !== undefined) {
         const val = Number(data.intensity);
         this.intensity = val;
         this.zone1.bean.intensity = val;
       }
-      else if (topic === 'Rayawa/soil_moisture_1' && data.moisture !== undefined) {
-        const val = Number(data.moisture);
-        this.moisture = val;
-        this.zone1.bean.moisture = val;
-      }
-      else if (topic === 'Rayawa/temp_and_hum_1') {
+      else if (topic === 'Rayawa/rgb/temp_and_hum') {
         if (data.temp !== undefined) {
           const tVal = Number(data.temp);
           this.temp = tVal;
@@ -129,6 +132,12 @@ struct Index {
           this.hum = hVal;
           this.zone1.bean.hum = hVal;
         }
+      }
+      // --- SOI 板相关数据解析 ---
+      else if (topic === 'Rayawa/soi/soil_moisture' && data.moisture !== undefined) {
+        const val = Number(data.moisture);
+        this.moisture = val;
+        this.zone1.bean.moisture = val;
       }
     } catch (e) {
       console.error(`[App] JSON解析失败: ${JSON.stringify(e)}`);
