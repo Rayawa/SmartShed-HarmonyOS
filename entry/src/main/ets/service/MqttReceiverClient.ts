@@ -8,17 +8,13 @@ import { LogType } from '../viewmodel/ConsoleBean';
 const MAX_MQTT_CLIENTID_LENGTH = 22;
 const MQTT_CLIENT_ID = 'SmartShed_Pad';
 
-// ==================== Topic 定义 ====================
-// RGB 板
 export const TOPICS_RGB: string[] = ['Rayawa/rgb/light_intensity', 'Rayawa/rgb/temp_and_hum'];
 export const TOPIC_RGB_LED = 'Rayawa/rgb/led';
 
-// SOI 板
 export const TOPICS_SOI: string[] = ['Rayawa/soi/soil_moisture'];
 export const TOPIC_SOI_FAN = 'Rayawa/soi/fan';
 export const TOPIC_SOI_WATER_PUMP = 'Rayawa/soi/water_pump';
 
-// 聚合所有需要订阅的只读/上报主题
 export const TOPICS_ALL: string[] = [...TOPICS_RGB, ...TOPICS_SOI];
 
 type MqttCallback = (topic: string, payload: string) => void;
@@ -40,7 +36,6 @@ export class MqttReceiverClient {
 
   private pingOutstanding: boolean = false;
 
-  // ==================== 两块板子的最后接收时间（初始设为 0） ====================
   private lastRgbDataTime: number = 0;
   private lastSoiDataTime: number = 0;
   private readonly BOARD_TIMEOUT_MS = 5000;
@@ -201,7 +196,6 @@ export class MqttReceiverClient {
     }, this.keepAliveSeconds * 1000 * 0.75);
   }
 
-  // ==================== 🛠️ 优化后的多板独立并行监控看门狗 ====================
   private startBoardOfflineWatcher(): void {
     if (this.boardOfflineCheckTimer !== null) {
       clearInterval(this.boardOfflineCheckTimer);
@@ -214,20 +208,16 @@ export class MqttReceiverClient {
       const isRgbOnline = AppStorage.get<boolean>('isBoardRgbConnected') || false;
       const isSoiOnline = AppStorage.get<boolean>('isBoardSoiConnected') || false;
 
-      // 1. 独立并发检查 RGB 开发板
-      // 条件：如果上次接收时间为0(从未上线过)或者距离上次接收超时，且当前系统判定为在线/初始态，必须立刻判流并报错
       if (this.lastRgbDataTime === 0 || (currentTime - this.lastRgbDataTime > this.BOARD_TIMEOUT_MS)) {
         if (isRgbOnline === true || this.lastRgbDataTime === 0) {
           AppStorage.setOrCreate('isBoardRgbConnected', false);
           this.printLog(LogType.ERROR, `【RGB开发板】未连接或断开！已连续超过 ${this.BOARD_TIMEOUT_MS / 1000} 秒未收到任何数据！`);
-          // 如果是从未上线触发的首次报错，为了不让日志无限刷，把时间锁死到一个非0的过期阈值
           if (this.lastRgbDataTime === 0) {
             this.lastRgbDataTime = currentTime - this.BOARD_TIMEOUT_MS - 1;
           }
         }
       }
 
-      // 2. 独立并发检查 SOI 开发板
       if (this.lastSoiDataTime === 0 || (currentTime - this.lastSoiDataTime > this.BOARD_TIMEOUT_MS)) {
         if (isSoiOnline === true || this.lastSoiDataTime === 0) {
           AppStorage.setOrCreate('isBoardSoiConnected', false);
@@ -237,7 +227,7 @@ export class MqttReceiverClient {
           }
         }
       }
-    }, 1000); // 缩短检查步长至 1s，提升单板断开的实时捕获效率
+    }, 1000);
   }
 
   public disconnect(): void {
@@ -318,8 +308,6 @@ export class MqttReceiverClient {
           this.updateConnectionState(true);
           this.startHeartbeat();
 
-          // 🛠️ 关键修复点：握手成功时，两块板子的最后通信时间全部清零初始化
-          // 逼迫看门狗定时器在 5 秒钟内必须收到各自板端的首次数据，否则立刻精准报错
           this.lastRgbDataTime = 0;
           this.lastSoiDataTime = 0;
           this.startBoardOfflineWatcher();
@@ -358,7 +346,6 @@ export class MqttReceiverClient {
 
     this.printLog(LogType.RECEIVE, `${topic}: ${payload}`);
 
-    // 分流处理不同板子的在线状态
     if (topic.startsWith('Rayawa/rgb/')) {
       this.lastRgbDataTime = Date.now();
       const isCurrentlyOnline = AppStorage.get<boolean>('isBoardRgbConnected') || false;
