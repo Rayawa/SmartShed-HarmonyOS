@@ -55,8 +55,8 @@ struct consolePage {
   @StorageLink("vibrationON") vibrationON: boolean = true;
   @State controller: hdsEffect.ShaderEffectController = new hdsEffect.ShaderEffectController();
 
-  // ==================== 1. 核心改进：直接联动全局状态池 ====================
-  // 避开 GlobalLogBus 重复注册导致的逻辑覆盖问题
+  // ==================== 1. 核心改进：联动全局状态池与生命周期 ====================
+  // 保持连接至全局AppStorage中的常驻链表 'logList'
   @StorageLink('logList') @Watch('onLogListChange') logList: LogMessage[] = [];
   private logDataSource: LogDataSource = new LogDataSource([]);
 
@@ -73,7 +73,7 @@ struct consolePage {
   private scrollToBottom() {
     setTimeout(() => {
       this.scroller.scrollEdge(Edge.Bottom);
-    }, 16);
+    }, 32); // 稍微增大延迟以对抗页面渲染树重建带来的滚动截断
   }
 
   private getTypeColor(type: LogType): Color | string {
@@ -128,13 +128,14 @@ struct consolePage {
   }
 
   aboutToAppear(): void {
-    // 移除原有的 GlobalLogBus.register(...)，让 Index 唯一的守护进程在后台跑
+    // 页面初始化时，直接从全局已存好的常驻内存池加载历史
     this.logDataSource.reload(this.logList);
-    this.scrollToBottom();
   }
 
   onPageShow() {
-    this.scroller.scrollEdge(Edge.Bottom);
+    // 解决页面路由进出后，视图重绘导致的无法置底问题
+    this.logDataSource.reload(this.logList);
+    this.scrollToBottom();
   }
 
   onBackPress(): boolean | void {
@@ -196,7 +197,6 @@ struct consolePage {
                   .fontColor(this.autoEnabled ? "#999999" : "#666666")
                   .flexShrink(0)
 
-                // ==================== 3. 应用拆分后的新标签 ====================
                 Text(`[${this.getTypeLabel(item)}]`)
                   .fontColor(this.getTypeColor(item.type))
                   .fontSize(11)

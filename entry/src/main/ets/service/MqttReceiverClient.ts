@@ -8,10 +8,14 @@ import { LogType } from '../viewmodel/ConsoleBean';
 const MAX_MQTT_CLIENTID_LENGTH = 22;
 const MQTT_CLIENT_ID = 'SmartShed_Pad';
 
-export const TOPICS_ALL: string[] = ['Rayawa/light_intensity_1', 'Rayawa/soil_moisture_1', 'Rayawa/temp_and_hum_1'];
-export const TOPIC_FAN = 'Rayawa/fan_1';
-export const TOPIC_LED = 'Rayawa/led_1';
-export const TOPIC_WATER_PUMP = 'Rayawa/water_pump_1';
+export const TOPICS_RGB: string[] = ['Rayawa/rgb/light_intensity', 'Rayawa/rgb/temp_and_hum'];
+export const TOPIC_RGB_LED = 'Rayawa/rgb/led';
+
+export const TOPICS_SOI: string[] = ['Rayawa/soi/soil_moisture'];
+export const TOPIC_SOI_FAN = 'Rayawa/soi/fan';
+export const TOPIC_SOI_WATER_PUMP = 'Rayawa/soi/water_pump';
+
+export const TOPICS_ALL: string[] = [...TOPICS_RGB, ...TOPICS_SOI];
 
 type MqttCallback = (topic: string, payload: string) => void;
 
@@ -31,7 +35,9 @@ export class MqttReceiverClient {
   private boardOfflineCheckTimer: number | null = null;
 
   private pingOutstanding: boolean = false;
-  private lastDataReceivedTime: number = 0;
+
+  private lastRgbDataTime: number = 0;
+  private lastSoiDataTime: number = 0;
   private readonly BOARD_TIMEOUT_MS = 5000;
 
   private subscribeTopics: string[] = TOPICS_ALL;
@@ -63,10 +69,11 @@ export class MqttReceiverClient {
   }
 
   private generateClientId(): string {
-    const randomNum = Math.floor(1000 + Math.random() * 9000);
     const timestamp = '' + Date.now();
-
-    let clientId = `Pad_${timestamp.slice(-10)}_${randomNum}`;
+    let clientId = MQTT_CLIENT_ID + timestamp;
+    if (clientId.length > MAX_MQTT_CLIENTID_LENGTH) {
+      clientId = clientId.substring(0, MAX_MQTT_CLIENTID_LENGTH);
+    }
     return clientId;
   }
 
@@ -138,12 +145,12 @@ export class MqttReceiverClient {
     if (!this.connected || !this.tcpSocket) return;
 
     let payload: number[] = [];
-    const packetId = [0x00, 0x01]; // 简易 Packet ID
+    const packetId = [0x00, 0x01];
 
     for (const topic of topics) {
       const topicBytes = this.stringToUtf8Bytes(topic);
       const topicLen = this.intToTwoBytes(topicBytes.length);
-      payload = [...payload, ...topicLen, ...topicBytes, 0x00]; // QoS 0
+      payload = [...payload, ...topicLen, ...topicBytes, 0x00];
     }
 
     const packet = this.buildMqttPacket(0x82, [...packetId, ...payload]);
@@ -183,10 +190,10 @@ export class MqttReceiverClient {
       }
 
       const pingPacket = this.buildMqttPacket(0xC0, []);
-      this.pingOutstanding = true; // 挂起等待回包
+      this.pingOutstanding = true;
       this.sendPacket(pingPacket);
       this.printLog(LogType.INFO, `发送心跳探测包 PINGREQ`);
-    }, this.keepAliveSeconds * 1000 * 0.75); // 15秒发送一次
+    }, this.keepAliveSeconds * 1000 * 0.75);
   }
 
   private startBoardOfflineWatcher(): void {
@@ -198,14 +205,29 @@ export class MqttReceiverClient {
       if (!this.connected) return;
 
       const currentTime = Date.now();
-      if (currentTime - this.lastDataReceivedTime > this.BOARD_TIMEOUT_MS) {
-        const isCurrentlyOnline = AppStorage.get<boolean>('isBoardConnected');
-        if (isCurrentlyOnline === true) {
-          this.printLog(LogType.ERROR, `开发板连接断开！已连续 ${this.BOARD_TIMEOUT_MS / 1000} 秒未收到数据！`);
-          AppStorage.setOrCreate('isBoardConnected', false);
+      const isRgbOnline = AppStorage.get<boolean>('isBoardRgbConnected') || false;
+      const isSoiOnline = AppStorage.get<boolean>('isBoardSoiConnected') || false;
+
+      if (this.lastRgbDataTime === 0 || (currentTime - this.lastRgbDataTime > this.BOARD_TIMEOUT_MS)) {
+        if (isRgbOnline === true || this.lastRgbDataTime === 0) {
+          AppStorage.setOrCreate('isBoardRgbConnected', false);
+          this.printLog(LogType.ERROR, `【RGB开发板】未连接或断开！已连续超过 ${this.BOARD_TIMEOUT_MS / 1000} 秒未收到任何数据！`);
+          if (this.lastRgbDataTime === 0) {
+            this.lastRgbDataTime = currentTime - this.BOARD_TIMEOUT_MS - 1;
+          }
         }
       }
-    }, 2000);
+
+      if (this.lastSoiDataTime === 0 || (currentTime - this.lastSoiDataTime > this.BOARD_TIMEOUT_MS)) {
+        if (isSoiOnline === true || this.lastSoiDataTime === 0) {
+          AppStorage.setOrCreate('isBoardSoiConnected', false);
+          this.printLog(LogType.ERROR, `【SOI开发板】未连接或断开！已连续超过 ${this.BOARD_TIMEOUT_MS / 1000} 秒未收到任何数据！`);
+          if (this.lastSoiDataTime === 0) {
+            this.lastSoiDataTime = currentTime - this.BOARD_TIMEOUT_MS - 1;
+          }
+        }
+      }
+    }, 1000);
   }
 
   public disconnect(): void {
@@ -286,7 +308,8 @@ export class MqttReceiverClient {
           this.updateConnectionState(true);
           this.startHeartbeat();
 
-          this.lastDataReceivedTime = Date.now();
+          this.lastRgbDataTime = 0;
+          this.lastSoiDataTime = 0;
           this.startBoardOfflineWatcher();
 
           if (this.subscribeTopics.length > 0 && this.callback) {
@@ -323,13 +346,19 @@ export class MqttReceiverClient {
 
     this.printLog(LogType.RECEIVE, `${topic}: ${payload}`);
 
-    if (topic.startsWith('Rayawa/')) {
-      this.lastDataReceivedTime = Date.now();
-
-      const isCurrentlyOnline = AppStorage.get<boolean>('isBoardConnected');
+    if (topic.startsWith('Rayawa/rgb/')) {
+      this.lastRgbDataTime = Date.now();
+      const isCurrentlyOnline = AppStorage.get<boolean>('isBoardRgbConnected') || false;
       if (isCurrentlyOnline === false && this.connected) {
-        AppStorage.setOrCreate('isBoardConnected', true);
-        this.printLog(LogType.INFO, `===开发板已连接！==============`);
+        AppStorage.setOrCreate('isBoardRgbConnected', true);
+        this.printLog(LogType.INFO, `=== RGB 开发板已连接！==============`);
+      }
+    } else if (topic.startsWith('Rayawa/soi/')) {
+      this.lastSoiDataTime = Date.now();
+      const isCurrentlyOnline = AppStorage.get<boolean>('isBoardSoiConnected') || false;
+      if (isCurrentlyOnline === false && this.connected) {
+        AppStorage.setOrCreate('isBoardSoiConnected', true);
+        this.printLog(LogType.INFO, `=== SOI 开发板已连接！==============`);
       }
     }
 
@@ -339,7 +368,8 @@ export class MqttReceiverClient {
   private updateConnectionState(state: boolean): void {
     this.connected = state;
     if (!state) {
-      AppStorage.setOrCreate('isBoardConnected', false);
+      AppStorage.setOrCreate('isBoardRgbConnected', false);
+      AppStorage.setOrCreate('isBoardSoiConnected', false);
     }
   }
 
