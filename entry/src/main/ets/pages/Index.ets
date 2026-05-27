@@ -27,7 +27,6 @@ export class GlobalLogBus {
   }
 }
 
-// ==================== 1. 同步全局 AppStorage 初始化数据 ====================
 AppStorage.setOrCreate('isBoardRgbConnected', false);
 AppStorage.setOrCreate('isBoardSoiConnected', false);
 AppStorage.setOrCreate('autoEnabled', false);
@@ -50,7 +49,6 @@ struct Index {
   @State navBarWidth: string | number = '100%';
   @StorageLink("isWideScreen") isWideScreen: boolean = true;
 
-  // 接收外部传入与同步的板子连接状态
   @StorageLink('isBoardRgbConnected') isBoardRgbConnected: boolean = false;
   @StorageLink('isBoardSoiConnected') isBoardSoiConnected: boolean = false;
   @StorageLink('autoEnabled') autoEnabled: boolean = false;
@@ -100,7 +98,6 @@ struct Index {
       this.mqttClient.onStart();
     } catch (error) {
       console.error(`[App] 初始化失败: ${JSON.stringify(error)}`);
-      // ==================== 2. 同步重置两块板子的连接状态 ====================
       this.isBoardRgbConnected = false;
       this.isBoardSoiConnected = false;
       promptAction.showToast({ message: '板端通讯组件初始化失败', duration: 3000 });
@@ -132,7 +129,6 @@ struct Index {
     }
   }
 
-  // ==================== 3. 核心修改：重新适配多板控制的数据路由分发 ====================
   private onMqttMessage(topic: string, payload: string): void {
     console.info(`[App] MQTT收到 -> Topic: ${topic}, Payload: ${payload}`);
 
@@ -140,7 +136,6 @@ struct Index {
       const data: SensorData = JSON.parse(payload);
 
       switch (topic) {
-        // --- RGB 开发板数据解析 ---
         case 'Rayawa/rgb/light_intensity':
           this.isBoardRgbConnected = true;
           if (data.intensity !== undefined) {
@@ -164,7 +159,6 @@ struct Index {
           }
           break;
 
-        // --- SOI 开发板数据解析 ---
         case 'Rayawa/soi/soil_moisture':
           this.isBoardSoiConnected = true;
           if (data.moisture !== undefined) {

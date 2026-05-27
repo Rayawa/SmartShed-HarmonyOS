@@ -1,6 +1,5 @@
 // src/main/ets/view/ManualPage.ets
 import { ZoneData } from '../viewmodel/SmartShedBean';
-// 仅修改导入：引入专属的板端控制 Topic 常量
 import {
   LogType,
   MqttReceiverClient,
@@ -61,6 +60,10 @@ export struct ManualPage {
   private timer1: number = -1;
   private timer2: number = -1;
   private timer3: number = -1;
+  private effect: TransitionEffect = TransitionEffect.OPACITY
+    .combine(TransitionEffect.translate({ y: 10 }))
+    .combine(TransitionEffect.scale({ x: 0.92, y: 0.92 }))
+    .animation({ curve: curves.springMotion(0.4, 0.65) });
   @Prop @Watch('onVisibleChange') isVisible: boolean = false;
   onVisibleChange(){
     this.handleManualPageVisibility(this.isVisible);
@@ -78,9 +81,11 @@ export struct ManualPage {
     if (this.timer1 !== -1) { clearTimeout(this.timer1); this.timer1 = -1; }
     if (this.timer2 !== -1) { clearTimeout(this.timer2); this.timer2 = -1; }
     if (this.timer3 !== -1) { clearTimeout(this.timer3); this.timer3 = -1; }
-    this.animStep1 = 0;
-    this.animStep2 = 0;
-    this.animStep3 = 0;
+    animateTo({ duration: 400, curve: Curve.EaseInOut }, () => {
+      this.animStep1 = 0;
+      this.animStep2 = 0;
+      this.animStep3 = 0;
+    })
   }
 
   private printLog(type: LogType, message: string): void {
@@ -108,7 +113,6 @@ export struct ManualPage {
     this.handleManualPageVisibility(false);
   }
 
-  // 修改控制逻辑：进入手动模式时，强制将指令分流同步下发至各自硬件专属的 Topic
   private handleManualPageVisibility(visible: boolean): void {
     if (visible) {
       this.autoEnabled = false;
@@ -337,7 +341,6 @@ export struct ManualPage {
                 Text('空气湿度').fontSize(12).fontColor($r("sys.color.font_secondary")).margin({ left: 6 })
               }.width('100%')
               Blank()
-              // 修改显示判定：空气湿度来自 RGB 开发板
               Text(this.isBoardRgbConnected ? `${this.hum} %` : "N/A").fontSize(22).fontWeight(FontWeight.Bold).fontColor($r("sys.color.font_primary")).width('100%').textAlign(TextAlign.Start)
             }
             .visualEffect(new hdsEffect.HdsEffectBuilder()
@@ -387,7 +390,6 @@ export struct ManualPage {
                 Text('光照强度').fontSize(12).fontColor($r("sys.color.font_secondary")).margin({ left: 6 })
               }.width('100%')
               Blank()
-              // 修改显示判定：光照来自 RGB 开发板
               Text(this.isBoardRgbConnected ? `${this.intensity} Lx` : "N/A").fontSize(22).fontWeight(FontWeight.Bold).fontColor($r("sys.color.font_primary")).width('100%').textAlign(TextAlign.Start)
             }
             .visualEffect(new hdsEffect.HdsEffectBuilder()
@@ -433,7 +435,6 @@ export struct ManualPage {
                 Text('土壤湿度').fontSize(12).fontColor($r("sys.color.font_secondary")).margin({ left: 6 })
               }.width('100%')
               Blank()
-              // 修改显示判定：土壤湿度来自 SOI 开发板
               Text(this.isBoardSoiConnected ? `${this.moisture} %` : "N/A").fontSize(22).fontWeight(FontWeight.Bold).fontColor($r("sys.color.font_primary")).width('100%').textAlign(TextAlign.Start)
             }
             .visualEffect(new hdsEffect.HdsEffectBuilder()
@@ -481,160 +482,182 @@ export struct ManualPage {
         .opacity(this.animStep2 ? 1 : 0)
         .translate({ y: this.animStep2 ? 0 : 20 })
 
-        Column({ space: 12 }) {
+        Column() {
           Text('手动控制')
             .padding(5)
             .fontSize(17)
             .fontWeight(FontWeight.Bold)
             .width('100%')
             .fontColor($r("sys.color.font_primary"))
-
-          Column() {
-            Row() {
-              Text('风扇主轴转速').fontSize(13).fontColor($r("sys.color.font_primary"))
-              Blank()
-              Text(this.isBoardSoiConnected ? (this.fanValue === 0 ? '关闭' : `${this.fanValue} 档`) : "N/A")
-                .fontSize(13).fontWeight(FontWeight.Medium).fontColor($r("sys.color.font_secondary"))
-            }.width('100%')
-            Row(){
-              Image($r('app.media.wind1')).height(20).width(20)
-              Slider({ value: this.fanValue, min: 0, max: 3, step: 1, style: SliderStyle.InSet })
-                .height(28).layoutWeight(1)
-                .enabled(this.isBoardSoiConnected) // 逻辑加入：未连接对应开发板则禁用交互
-                .onChange((val: number, mode: SliderChangeMode) => {
-                  let targetVal = Math.floor(val);
-                  if (mode === SliderChangeMode.End || mode === SliderChangeMode.Click) {
-                    this.fanValue = targetVal;
-                    this.printLog(LogType.INFO, `通过滑块调节风扇档位 -> 设定为: ${targetVal} 档`);
-                    // 逻辑替换：发送给专属 Topic
-                    this.safePublish(TOPIC_SOI_FAN, targetVal.toString());
-                  }
-                })
-              Image($r('app.media.wind2')).height(20).width(20)
-            }.alignItems(VerticalAlign.Center)
-          }.borderRadius(16).borderWidth(1).borderColor($r("app.color.border")).padding(10).width("100%")
-          .visualEffect(new hdsEffect.HdsEffectBuilder()
-            .pressShadow(this.button_gradient_state)
-            .pointLight({
-              sourceType: this.lightSourceType1,
-              illuminatedType: hdsEffect.PointLightIlluminatedType.BORDER,
-              options: {
-                color: this.lightColor,
-                intensity: this.lightIntensity,
-                height: 150
-              }
-            })
-            .pressShadow(this.button_gradient_state)
-            .buildEffect())
-          .scale({ x: this.isPressed1 ? 0.97 : 1, y: this.isPressed1 ? 0.97 : 1 })
-          .animation({ curve: Curve.EaseOut, duration: 150 })
-          .onTouch((event: TouchEvent) => {
-            if (event.type === TouchType.Down) {
-              this.lightSourceType1 = hdsEffect.PointLightSourceType.SOFT;
-              this.isPressed1 = true;
-            } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
-              this.lightSourceType1 = hdsEffect.PointLightSourceType.NONE;
-              this.isPressed1 = false;
+            .margin({ bottom: 12 })
+            if(!this.isBoardRgbConnected && !this.isBoardSoiConnected){
+              Text("N/A")
+                .padding(5)
+                .fontSize(16)
+                .fontWeight(FontWeight.Medium)
+                .width('100%')
+                .fontColor($r("sys.color.font_primary"))
+                .transition(this.effect)
             }
-          })
-
-          Column() {
-            Row() {
-              Text('微型潜水泵').fontSize(13).fontColor($r("sys.color.font_primary"))
-              Blank()
-              Text(this.isBoardSoiConnected ? (this.waterPumpValue === 0 ? '关闭' : `${this.waterPumpValue} 档`) : "N/A")
-                .fontSize(13).fontWeight(FontWeight.Medium).fontColor($r("sys.color.font_secondary"))
-            }.width('100%')
-            Row(){
-              Image($r('app.media.water1')).height(20).width(20)
-              Slider({ value: this.waterPumpValue, min: 0, max: 3, step: 1, style: SliderStyle.InSet })
-                .height(28).layoutWeight(1)
-                .enabled(this.isBoardSoiConnected) // 逻辑加入：未连接对应开发板则禁用交互
-                .onChange((val: number, mode: SliderChangeMode) => {
-                  let targetVal = Math.floor(val);
-                  if (mode === SliderChangeMode.End || mode === SliderChangeMode.Click) {
-                    this.waterPumpValue = targetVal;
-                    this.printLog(LogType.INFO, `通过滑块调节潜水泵档位 -> 设定为: ${targetVal} 档`);
-                    this.safePublish(TOPIC_SOI_WATER_PUMP, targetVal.toString());
-                  }
-                })
-              Image($r('app.media.water2')).height(20).width(20)
-            }.alignItems(VerticalAlign.Center)
-          }.borderRadius(16).borderWidth(1).borderColor($r("app.color.border")).padding(10).width("100%")
-          .visualEffect(new hdsEffect.HdsEffectBuilder()
-            .pressShadow(this.button_gradient_state)
-            .pointLight({
-              sourceType: this.lightSourceType2,
-              illuminatedType: hdsEffect.PointLightIlluminatedType.BORDER,
-              options: {
-                color: this.lightColor,
-                intensity: this.lightIntensity,
-                height: 150
+            else {
+              Column(){
+                if (this.isBoardRgbConnected) {
+                  Column() {
+                    Row() {
+                      Text('全光谱植物补光灯').fontSize(13).fontColor($r("sys.color.font_primary"))
+                      Blank()
+                      Text(this.isBoardRgbConnected ? (this.ledValue === 0 ? '关闭' : `${this.ledValue} %`) : "N/A")
+                        .fontSize(13).fontWeight(FontWeight.Medium).fontColor($r("sys.color.font_secondary"))
+                    }.width('100%')
+                    Row(){
+                      Image($r('app.media.light1')).height(20).width(20)
+                      Slider({ value: this.ledValue, min: 0, max: 100, step: 1, style: SliderStyle.InSet })
+                        .height(28).layoutWeight(1)
+                        .enabled(this.isBoardRgbConnected)
+                        .onChange((val: number, mode: SliderChangeMode) => {
+                          let targetVal = Math.floor(val);
+                          if (mode === SliderChangeMode.End || mode === SliderChangeMode.Click) {
+                            this.ledValue = targetVal;
+                            this.printLog(LogType.INFO, `通过滑块调节植物灯亮度 -> 设定为: ${targetVal} %`);
+                            this.safePublish(TOPIC_RGB_LED, targetVal.toString());
+                          }
+                        })
+                      Image($r('app.media.light2')).height(20).width(20)
+                    }.alignItems(VerticalAlign.Center)
+                  }.borderRadius(16).borderWidth(1).borderColor($r("app.color.border")).padding(10).width("100%")
+                  .transition(this.effect)
+                  .visualEffect(new hdsEffect.HdsEffectBuilder()
+                    .pressShadow(this.button_gradient_state)
+                    .pointLight({
+                      sourceType: this.lightSourceType3,
+                      illuminatedType: hdsEffect.PointLightIlluminatedType.BORDER,
+                      options: {
+                        color: this.lightColor,
+                        intensity: this.lightIntensity,
+                        height: 150
+                      }
+                    })
+                    .pressShadow(this.button_gradient_state)
+                    .buildEffect())
+                  .scale({ x: this.isPressed3 ? 0.97 : 1, y: this.isPressed3 ? 0.97 : 1 })
+                  .animation({ curve: Curve.EaseOut, duration: 150 })
+                  .onTouch((event: TouchEvent) => {
+                    if (event.type === TouchType.Down) {
+                      this.lightSourceType3 = hdsEffect.PointLightSourceType.BRIGHT;
+                      this.isPressed3 = true;
+                    } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+                      this.lightSourceType3 = hdsEffect.PointLightSourceType.NONE;
+                      this.isPressed3 = false;
+                    }
+                  })
+                  .margin({ bottom: 12 })
+                }
+                if (this.isBoardSoiConnected) {
+                  Column() {
+                    Row() {
+                      Text('风扇主轴转速').fontSize(13).fontColor($r("sys.color.font_primary"))
+                      Blank()
+                      Text(this.isBoardSoiConnected ? (this.fanValue === 0 ? '关闭' : `${this.fanValue} 档`) : "N/A")
+                        .fontSize(13).fontWeight(FontWeight.Medium).fontColor($r("sys.color.font_secondary"))
+                    }.width('100%')
+                    Row(){
+                      Image($r('app.media.wind1')).height(20).width(20)
+                      Slider({ value: this.fanValue, min: 0, max: 3, step: 1, style: SliderStyle.InSet })
+                        .height(28).layoutWeight(1)
+                        .enabled(this.isBoardSoiConnected)
+                        .onChange((val: number, mode: SliderChangeMode) => {
+                          let targetVal = Math.floor(val);
+                          if (mode === SliderChangeMode.End || mode === SliderChangeMode.Click) {
+                            this.fanValue = targetVal;
+                            this.printLog(LogType.INFO, `通过滑块调节风扇档位 -> 设定为: ${targetVal} 档`);
+                            this.safePublish(TOPIC_SOI_FAN, targetVal.toString());
+                          }
+                        })
+                      Image($r('app.media.wind2')).height(20).width(20)
+                    }.alignItems(VerticalAlign.Center)
+                  }.borderRadius(16).borderWidth(1).borderColor($r("app.color.border")).padding(10).width("100%")
+                  .transition(this.effect)
+                  .visualEffect(new hdsEffect.HdsEffectBuilder()
+                    .pressShadow(this.button_gradient_state)
+                    .pointLight({
+                      sourceType: this.lightSourceType1,
+                      illuminatedType: hdsEffect.PointLightIlluminatedType.BORDER,
+                      options: {
+                        color: this.lightColor,
+                        intensity: this.lightIntensity,
+                        height: 150
+                      }
+                    })
+                    .pressShadow(this.button_gradient_state)
+                    .buildEffect())
+                  .scale({ x: this.isPressed1 ? 0.97 : 1, y: this.isPressed1 ? 0.97 : 1 })
+                  .animation({ curve: Curve.EaseOut, duration: 150 })
+                  .onTouch((event: TouchEvent) => {
+                    if (event.type === TouchType.Down) {
+                      this.lightSourceType1 = hdsEffect.PointLightSourceType.BRIGHT;
+                      this.isPressed1 = true;
+                    } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+                      this.lightSourceType1 = hdsEffect.PointLightSourceType.NONE;
+                      this.isPressed1 = false;
+                    }
+                  })
+                  .margin({ bottom: 12 })
+                }
+                if (this.isBoardSoiConnected) {
+                  Column() {
+                    Row() {
+                      Text('微型潜水泵').fontSize(13).fontColor($r("sys.color.font_primary"))
+                      Blank()
+                      Text(this.isBoardSoiConnected ? (this.waterPumpValue === 0 ? '关闭' : `${this.waterPumpValue} 档`) : "N/A")
+                        .fontSize(13).fontWeight(FontWeight.Medium).fontColor($r("sys.color.font_secondary"))
+                    }.width('100%')
+                    Row(){
+                      Image($r('app.media.water1')).height(20).width(20)
+                      Slider({ value: this.waterPumpValue, min: 0, max: 3, step: 1, style: SliderStyle.InSet })
+                        .height(28).layoutWeight(1)
+                        .enabled(this.isBoardSoiConnected)
+                        .onChange((val: number, mode: SliderChangeMode) => {
+                          let targetVal = Math.floor(val);
+                          if (mode === SliderChangeMode.End || mode === SliderChangeMode.Click) {
+                            this.waterPumpValue = targetVal;
+                            this.printLog(LogType.INFO, `通过滑块调节潜水泵档位 -> 设定为: ${targetVal} 档`);
+                            this.safePublish(TOPIC_SOI_WATER_PUMP, targetVal.toString());
+                          }
+                        })
+                      Image($r('app.media.water2')).height(20).width(20)
+                    }.alignItems(VerticalAlign.Center)
+                  }.borderRadius(16).borderWidth(1).borderColor($r("app.color.border")).padding(10).width("100%")
+                  .transition(this.effect)
+                  .visualEffect(new hdsEffect.HdsEffectBuilder()
+                    .pressShadow(this.button_gradient_state)
+                    .pointLight({
+                      sourceType: this.lightSourceType2,
+                      illuminatedType: hdsEffect.PointLightIlluminatedType.BORDER,
+                      options: {
+                        color: this.lightColor,
+                        intensity: this.lightIntensity,
+                        height: 150
+                      }
+                    })
+                    .pressShadow(this.button_gradient_state)
+                    .buildEffect())
+                  .scale({ x: this.isPressed2 ? 0.97 : 1, y: this.isPressed2 ? 0.97 : 1 })
+                  .animation({ curve: Curve.EaseOut, duration: 150 })
+                  .onTouch((event: TouchEvent) => {
+                    if (event.type === TouchType.Down) {
+                      this.lightSourceType2 = hdsEffect.PointLightSourceType.BRIGHT;
+                      this.isPressed2 = true;
+                    } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+                      this.lightSourceType2 = hdsEffect.PointLightSourceType.NONE;
+                      this.isPressed2 = false;
+                    }
+                  })
+                  .margin({ bottom: 12 })
+                }
               }
-            })
-            .pressShadow(this.button_gradient_state)
-            .buildEffect())
-          .scale({ x: this.isPressed2 ? 0.97 : 1, y: this.isPressed2 ? 0.97 : 1 })
-          .animation({ curve: Curve.EaseOut, duration: 150 })
-          .onTouch((event: TouchEvent) => {
-            if (event.type === TouchType.Down) {
-              this.lightSourceType2 = hdsEffect.PointLightSourceType.SOFT;
-              this.isPressed2 = true;
-            } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
-              this.lightSourceType2 = hdsEffect.PointLightSourceType.NONE;
-              this.isPressed2 = false;
             }
-          })
-
-          Column() {
-            Row() {
-              Text('全光谱植物补光灯').fontSize(13).fontColor($r("sys.color.font_primary"))
-              Blank()
-              Text(this.isBoardRgbConnected ? (this.ledValue === 0 ? '关闭' : `${this.ledValue} %`) : "N/A")
-                .fontSize(13).fontWeight(FontWeight.Medium).fontColor($r("sys.color.font_secondary"))
-            }.width('100%')
-            Row(){
-              Image($r('app.media.light1')).height(20).width(20)
-              Slider({ value: this.ledValue, min: 0, max: 100, step: 1, style: SliderStyle.InSet })
-                .height(28).layoutWeight(1)
-                .enabled(this.isBoardRgbConnected) // 逻辑加入：未连接对应开发板则禁用交互
-                .onChange((val: number, mode: SliderChangeMode) => {
-                  let targetVal = Math.floor(val);
-                  if (mode === SliderChangeMode.End || mode === SliderChangeMode.Click) {
-                    this.ledValue = targetVal;
-                    this.printLog(LogType.INFO, `通过滑块调节植物灯亮度 -> 设定为: ${targetVal} %`);
-                    this.safePublish(TOPIC_RGB_LED, targetVal.toString());
-                  }
-                })
-              Image($r('app.media.light2')).height(20).width(20)
-            }.alignItems(VerticalAlign.Center)
-          }.borderRadius(16).borderWidth(1).borderColor($r("app.color.border")).padding(10).width("100%")
-          .visualEffect(new hdsEffect.HdsEffectBuilder()
-            .pressShadow(this.button_gradient_state)
-            .pointLight({
-              sourceType: this.lightSourceType3,
-              illuminatedType: hdsEffect.PointLightIlluminatedType.BORDER,
-              options: {
-                color: this.lightColor,
-                intensity: this.lightIntensity,
-                height: 150
-              }
-            })
-            .pressShadow(this.button_gradient_state)
-            .buildEffect())
-          .scale({ x: this.isPressed3 ? 0.97 : 1, y: this.isPressed3 ? 0.97 : 1 })
-          .animation({ curve: Curve.EaseOut, duration: 150 })
-          .onTouch((event: TouchEvent) => {
-            if (event.type === TouchType.Down) {
-              this.lightSourceType3 = hdsEffect.PointLightSourceType.SOFT;
-              this.isPressed3 = true;
-            } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
-              this.lightSourceType3 = hdsEffect.PointLightSourceType.NONE;
-              this.isPressed3 = false;
-            }
-          })
-
         }
+        .animation({ curve: curves.springMotion(0.5, 0.8) })
         .shadow({
           radius: 8,
           color: "#1a000000",
@@ -672,6 +695,7 @@ export struct ManualPage {
         .opacity(this.animStep3 ? 1 : 0)
         .translate({ y: this.animStep3 ? 0 : 20 })
       }
+      .animation({ curve: Curve.EaseOut, duration: 150 })
 
     }
     .height("100%")

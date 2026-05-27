@@ -1,6 +1,5 @@
 // src/main/ets/view/AutoPage.ets
 import { ZoneData } from '../viewmodel/SmartShedBean';
-// 仅修改导入：引入双板专属控制 Topic 常量
 import { MqttReceiverClient, TOPIC_RGB_LED, TOPIC_SOI_FAN, TOPIC_SOI_WATER_PUMP } from '../service/MqttReceiverClient';
 import { curves, display, LengthMetrics, promptAction } from '@kit.ArkUI';
 import { hdsEffect } from '@kit.UIDesignKit';
@@ -12,7 +11,6 @@ import { GlobalLogBus } from '../pages/Index';
 export struct AutoPage {
   @StorageLink("vibrationON") vibrationON: boolean = true;
   @StorageLink("isWideScreen") isWideScreen: boolean = true;
-  // 逻辑修改：拆分为双板连接状态状态监听
   @StorageLink('isBoardRgbConnected') isBoardRgbConnected: boolean = false;
   @StorageLink('isBoardSoiConnected') isBoardSoiConnected: boolean = false;
   @StorageLink('autoEnabled') autoEnabled: boolean = false;
@@ -63,6 +61,10 @@ export struct AutoPage {
   private timer1: number = -1;
   private timer2: number = -1;
   private timer3: number = -1;
+  private effect: TransitionEffect = TransitionEffect.OPACITY
+    .combine(TransitionEffect.translate({ y: 10 }))
+    .combine(TransitionEffect.scale({ x: 0.92, y: 0.92 }))
+    .animation({ curve: curves.springMotion(0.4, 0.65) });
   @Prop @Watch('onVisibleChange') isVisible: boolean = false;
   onVisibleChange(){
     this.handleAutoPageVisibility(this.isVisible);
@@ -128,7 +130,6 @@ export struct AutoPage {
       const errMsg = error instanceof Error ? error.message : JSON.stringify(error);
       this.printLog(LogType.ERROR, `自动控制外发失败崩溃: ${errMsg}`);
       promptAction.showToast({ message: '指令自动下发失败，请检查网络', duration: 2000 });
-      // 逻辑修改：下发失败时，根据外发 Topic 重置对应板子的连接状态判定
       if (topic === TOPIC_RGB_LED) {
         this.isBoardRgbConnected = false;
       } else {
@@ -157,7 +158,6 @@ export struct AutoPage {
         const moistureMax = parseInt(this.zone1.autoMoistureMax) || 75;
         const intensityMin = parseInt(this.zone1.autoIntensityMin) || 200;
 
-        // 策略逻辑1：风扇控制（仅在 SOI 板端建立连接时计算并外发）
         if (this.isBoardSoiConnected) {
           let targetFan = 0;
           if (this.temp > tempMax + 10 || this.hum > humMax + 20 || this.moisture > moistureMax + 20) {
@@ -171,12 +171,10 @@ export struct AutoPage {
           if (this.fanValue !== targetFan) {
             this.printLog(LogType.INFO, `[策略变更] 触发降温排湿，风扇状态跳转: ${this.fanValue} -> ${targetFan} 档`);
             this.fanValue = targetFan;
-            // 逻辑修改：指向专属控制 Topic
             this.safePublish(TOPIC_SOI_FAN, targetFan.toString());
           }
         }
 
-        // 策略逻辑2：水泵控制（仅在 SOI 板端建立连接时计算并外发）
         if (this.isBoardSoiConnected) {
           let targetPump = 0;
           if (this.moisture < moistureMin - 20) {
@@ -190,12 +188,10 @@ export struct AutoPage {
           if (this.waterPumpValue !== targetPump) {
             this.printLog(LogType.INFO, `[策略变更] 土壤过分干燥(当前土湿:${this.moisture}%)，水泵自动开启: ${this.waterPumpValue} -> ${targetPump} 档`);
             this.waterPumpValue = targetPump;
-            // 逻辑修改：指向专属控制 Topic
             this.safePublish(TOPIC_SOI_WATER_PUMP, targetPump.toString());
           }
         }
 
-        // 策略逻辑3：补光灯控制（仅在 RGB 板端建立连接时计算并外发）
         if (this.isBoardRgbConnected) {
           let targetLed = 0;
           if (this.intensity < intensityMin) {
@@ -206,7 +202,6 @@ export struct AutoPage {
           if (this.ledValue !== targetLed) {
             this.printLog(LogType.INFO, `[策略变更] 自然光不足(当前光照:${this.intensity}Lx)，补光灯自动调节至: ${targetLed}%`);
             this.ledValue = targetLed;
-            // 逻辑修改：指向专属控制 Topic
             this.safePublish(TOPIC_RGB_LED, targetLed.toString());
           }
         }
@@ -255,11 +250,11 @@ export struct AutoPage {
         Row({ space: 5 }) {
           Row(){
             Circle({ width: 8, height: 8 })
-              .fill(this.isBoardRgbConnected ? $r("app.color.green_dark") : $r("app.color.red_dark"))
+              .fill(this.isBoardRgbConnected ? "#ff287328" : "#FF3B30")
               .margin({ right: 6 })
             Text(this.isBoardRgbConnected ? 'Rayawa/rgb 已连接' : 'Rayawa/rgb 未连接')
               .fontSize(14)
-              .fontColor(this.isBoardRgbConnected ? $r("app.color.green_dark") : $r("app.color.red_dark"))
+              .fontColor(this.isBoardRgbConnected ? "#ff287328" : "#FF3B30")
           }
           .shadow({
             radius: 8,
@@ -292,18 +287,18 @@ export struct AutoPage {
             }
           })
           .padding(10)
-          .backgroundColor(this.isBoardRgbConnected ? $r("app.color.green_light") : $r("app.color.red_light"))
           .borderRadius(16)
-          .borderWidth(1)
+          .borderWidth(0.5)
+          .backgroundColor(this.transparentColor)
           .borderColor(this.isBoardRgbConnected ? $r("app.color.green_dark") : $r("app.color.red_dark"))
 
           Row(){
             Circle({ width: 8, height: 8 })
-              .fill(this.isBoardSoiConnected ? $r("app.color.green_dark") : $r("app.color.red_dark"))
+              .fill(this.isBoardSoiConnected ? "#ff287328" : "#FF3B30")
               .margin({ right: 6 })
             Text(this.isBoardSoiConnected ? 'Rayawa/soi 已连接' : 'Rayawa/soi 未连接')
               .fontSize(14)
-              .fontColor(this.isBoardSoiConnected ? $r("app.color.green_dark") : $r("app.color.red_dark"))
+              .fontColor(this.isBoardSoiConnected ? "#ff287328" : "#FF3B30")
           }
           .shadow({
             radius: 8,
@@ -336,10 +331,10 @@ export struct AutoPage {
             }
           })
           .padding(10)
-          .backgroundColor(this.isBoardSoiConnected ? $r("app.color.green_light") : $r("app.color.red_light"))
-          .borderRadius(16)
-          .borderWidth(1)
+          .borderWidth(0.5)
+          .backgroundColor(this.transparentColor)
           .borderColor(this.isBoardSoiConnected ? $r("app.color.green_dark") : $r("app.color.red_dark"))
+          .borderRadius(16)
         }
         .shadow({
           radius: 8,
@@ -373,8 +368,9 @@ export struct AutoPage {
         .justifyContent(FlexAlign.SpaceBetween)
         .width(this.isWideScreen ? 'calc(50% - 8vp)' : '100%')
         .padding(10)
-        .borderWidth(1).borderColor($r("app.color.border"))
-        .backgroundColor($r("app.color.background"))
+        .borderWidth(1)
+        .borderColor(this.transparentBorderColor)
+        .backgroundColor(this.transparentColor)
         .borderRadius(16)
         .opacity(this.animStep1 ? 1 : 0)
         .translate({ y: this.animStep1 ? 0 : 20 })
@@ -392,7 +388,6 @@ export struct AutoPage {
                 }.width('100%')
 
                 Blank()
-                // 逻辑修改：绑定至具体板端的在线状态，离线则退回显示 N/A
                 Text(this.isBoardRgbConnected ? `${this.temp} ℃` : "N/A")
                   .fontSize(22)
                   .fontWeight(FontWeight.Bold)
@@ -445,7 +440,6 @@ export struct AutoPage {
                 }.width('100%')
 
                 Blank()
-                // 逻辑修改：绑定至具体板端的在线状态，离线则退回显示 N/A
                 Text(this.isBoardRgbConnected ? `${this.hum} %` : "N/A")
                   .fontSize(22)
                   .fontWeight(FontWeight.Bold)
@@ -502,7 +496,6 @@ export struct AutoPage {
                 }.width('100%')
 
                 Blank()
-                // 逻辑修改：绑定至具体板端的在线状态，离线则退回显示 N/A
                 Text(this.isBoardRgbConnected ? `${this.intensity} Lx` : "N/A")
                   .fontSize(22)
                   .fontWeight(FontWeight.Bold)
@@ -555,7 +548,6 @@ export struct AutoPage {
                 }.width('100%')
 
                 Blank()
-                // 逻辑修改：绑定至具体板端的在线状态，离线则退回显示 N/A
                 Text(this.isBoardSoiConnected ? `${this.moisture} %` : "N/A")
                   .fontSize(22)
                   .fontWeight(FontWeight.Bold)
@@ -616,25 +608,38 @@ export struct AutoPage {
               .width('100%')
               .fontColor("#444444")
               .margin({ bottom: 4 })
+            if( this.isBoardRgbConnected && this.isBoardSoiConnected ){
+              Column({ space: 10 }) {
+                Row({ space: 10 }) {
+                  this.inputField('温度上限', () => this.zone1.autoTempMax, (v) => { this.zone1.autoTempMax = v })
+                  this.inputField('空湿上限', () => this.zone1.autoHumMax, (v) => { this.zone1.autoHumMax = v })
+                }.width('100%')
+                Row({ space: 10 }) {
+                  this.inputField('光照下限', () => this.zone1.autoIntensityMin, (v) => { this.zone1.autoIntensityMin = v })
+                  this.inputField('光照上限', () => this.zone1.autoIntensityMax, (v) => { this.zone1.autoIntensityMax = v })
+                }.width('100%')
 
-            Column({ space: 10 }) {
-              Row({ space: 10 }) {
-                this.inputField('温度上限', () => this.zone1.autoTempMax, (v) => { this.zone1.autoTempMax = v })
-                this.inputField('空湿上限', () => this.zone1.autoHumMax, (v) => { this.zone1.autoHumMax = v })
-              }.width('100%')
+                Row({ space: 10 }) {
+                  this.inputField('土湿下限', () => this.zone1.autoMoistureMin, (v) => { this.zone1.autoMoistureMin = v })
+                  this.inputField('土湿上限', () => this.zone1.autoMoistureMax, (v) => { this.zone1.autoMoistureMax = v })
+                }.width('100%')
 
-              Row({ space: 10 }) {
-                this.inputField('土湿下限', () => this.zone1.autoMoistureMin, (v) => { this.zone1.autoMoistureMin = v })
-                this.inputField('土湿上限', () => this.zone1.autoMoistureMax, (v) => { this.zone1.autoMoistureMax = v })
-              }.width('100%')
 
-              Row({ space: 10 }) {
-                this.inputField('光照下限', () => this.zone1.autoIntensityMin, (v) => { this.zone1.autoIntensityMin = v })
-                this.inputField('光照上限', () => this.zone1.autoIntensityMax, (v) => { this.zone1.autoIntensityMax = v })
-              }.width('100%')
+              }
+              .transition(this.effect)
+              .width('100%')
             }
-            .width('100%')
+            else {
+              Text(this.isBoardRgbConnected ? (this.isBoardSoiConnected ? "彩蛋！" : "soi板未连接") : (this.isBoardSoiConnected ? "rgb板未连接" : "N/A"))
+                .transition(this.effect)
+                .padding(5)
+                .fontSize(16)
+                .fontWeight(FontWeight.Medium)
+                .width('100%')
+                .fontColor("#444444")
+            }
           }
+          .animation({ curve: curves.springMotion(0.5, 0.8) })
           .shadow({
             radius: 8,
             color: "#1a000000",
