@@ -39,8 +39,8 @@ export class ZoneData {
   autoTempMax: string = '30';
   autoHumMin: string = '30';
   autoHumMax: string = '80';
-  autoIntensityMin: string = '200';
-  autoIntensityMax: string = '1100';
+  autoIntensityMin: string = '1200';
+  autoIntensityMax: string = '1700';
   autoMoistureMin: string = '40';
   autoMoistureMax: string = '75';
 
