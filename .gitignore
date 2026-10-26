@@ -10,3 +10,6 @@
 /.clang-tidy
 **/.test
 /.appanalyzer
+
+# Local signing configuration; never commit credentials.
+/build-profile.json5
