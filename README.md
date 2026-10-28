@@ -16,44 +16,44 @@ SmartShed runs on HarmonyOS tablets and phones. It offers **manual** and **autom
 
 ```
 SmartShed-HarmonyOS/
-├── AppScope/                          # 应用级资源配置
-│   ├── app.json5                      # 应用配置（bundleName、版本等）
-│   └── resources/                     # 应用级资源（图标、字符串等）
+├── AppScope/                          # App-level resource configuration
+│   ├── app.json5                      # App configuration (bundleName, version, etc.)
+│   └── resources/                     # App resources (icons, strings, etc.)
 │
-├── entry/                             # 主 Entry 模块
+├── entry/                             # Main Entry module
 │   ├── src/
 │   │   ├── main/
-│   │   │   ├── ets/                   # ArkTS 源代码
+│   │   │   ├── ets/                   # ArkTS source
 │   │   │   │   ├── entryability/
-│   │   │   │   │   └── EntryAbility.ts        # Ability 生命周期入口
+│   │   │   │   │   └── EntryAbility.ts        # Ability lifecycle entry point
 │   │   │   │   ├── pages/
-│   │   │   │   │   ├── Index.ets              # 主页面：导航框架 + MQTT 初始化 + 数据流
-│   │   │   │   │   └── console.ets            # 调试日志面板（侧边/全屏）
+│   │   │   │   │   ├── Index.ets              # Main page: navigation, MQTT initialization, and data flow
+│   │   │   │   │   └── console.ets            # Debug log panel (sidebar/full screen)
 │   │   │   │   ├── service/
-│   │   │   │   │   ├── MqttReceiverClient.ts  # MQTT 客户端（TCP Socket 直连）
-│   │   │   │   │   └── vibration.ets          # 触觉反馈封装
+│   │   │   │   │   ├── MqttReceiverClient.ts  # MQTT client with direct TCP Socket connection
+│   │   │   │   │   └── vibration.ets          # Haptic feedback wrapper
 │   │   │   │   ├── view/
-│   │   │   │   │   ├── ManualPage.ets         # 手动模式 Tab 页面
-│   │   │   │   │   └── AutoPage.ets           # 智能模式 Tab 页面
+│   │   │   │   │   ├── ManualPage.ets         # Manual-mode tab
+│   │   │   │   │   └── AutoPage.ets           # Smart-mode tab
 │   │   │   │   └── viewmodel/
-│   │   │   │       ├── SmartShedBean.ts        # 数据模型（SensorData、ZoneData）
-│   │   │   │       └── ConsoleBean.ts          # 日志类型定义
-│   │   │   ├── module.json5            # 模块配置（权限、Ability 声明）
-│   │   │   └── resources/              # 模块级资源（颜色、字符串、图片、路由等）
-│   │   ├── ohosTest/                   # 自动化测试
-│   │   ├── test/                       # 本地单元测试
-│   │   └── mock/                       # Mock 配置
+│   │   │   │       ├── SmartShedBean.ts        # Data models (SensorData, ZoneData)
+│   │   │   │       └── ConsoleBean.ts          # Log type definitions
+│   │   │   ├── module.json5            # Module configuration (permissions, Ability declarations)
+│   │   │   └── resources/              # Module resources (colors, strings, images, routes, etc.)
+│   │   ├── ohosTest/                   # Automated tests
+│   │   ├── test/                       # Local unit tests
+│   │   └── mock/                       # Mock configuration
 │   │
-│   ├── build-profile.json5             # 模块构建配置
-│   ├── hvigorfile.ts                   # 模块 Hvigor 构建脚本
-│   └── oh-package.json5                # 模块包依赖声明
+│   ├── build-profile.json5             # Module build configuration
+│   ├── hvigorfile.ts                   # Module Hvigor build script
+│   └── oh-package.json5                # Module package dependencies
 │
-├── build-profile.json5                 # 项目级构建配置（签名、SDK 版本等）
-├── hvigorfile.ts                       # 项目级 Hvigor 构建脚本
-├── oh-package.json5                    # 项目级包管理
-├── hvigor/                             # Hvigor 构建工具配置
-├── local.properties                    # 本地环境配置
-├── code-linter.json5                   # 代码检查规则
+├── build-profile.json5                 # Project build configuration (signing, SDK version, etc.)
+├── hvigorfile.ts                       # Project Hvigor build script
+├── oh-package.json5                    # Project package management
+├── hvigor/                             # Hvigor build tool configuration
+├── local.properties                    # Local environment configuration
+├── code-linter.json5                   # Lint rules
 └── .gitignore
 ```
 
